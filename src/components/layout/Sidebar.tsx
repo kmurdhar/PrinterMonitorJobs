@@ -6,7 +6,8 @@ import {
   Users, 
   Settings, 
   Activity,
-  Home
+  Home,
+  UserPlus
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'jobs', label: 'Print Jobs', icon: FileText },
     { id: 'printers', label: 'Printers', icon: Printer },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'onboarding', label: 'Onboarding', icon: UserPlus },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'monitoring', label: 'Monitoring', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings }

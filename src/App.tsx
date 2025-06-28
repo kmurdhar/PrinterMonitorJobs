@@ -7,6 +7,7 @@ import DashboardCharts from './components/dashboard/DashboardCharts';
 import PrintJobsTable from './components/jobs/PrintJobsTable';
 import PrinterGrid from './components/printers/PrinterGrid';
 import UsersTable from './components/users/UsersTable';
+import OnboardingDashboard from './components/onboarding/OnboardingDashboard';
 import { 
   mockDashboardStats, 
   mockPrintJobs, 
@@ -136,6 +137,8 @@ function App() {
             <UsersTable users={users} onUsersChange={setUsers} />
           </div>
         );
+      case 'onboarding':
+        return <OnboardingDashboard />;
       case 'analytics':
         return (
           <div>
