@@ -8,6 +8,8 @@ import PrintJobsTable from './components/jobs/PrintJobsTable';
 import PrinterGrid from './components/printers/PrinterGrid';
 import UsersTable from './components/users/UsersTable';
 import OnboardingDashboard from './components/onboarding/OnboardingDashboard';
+import PricingDashboard from './components/pricing/PricingDashboard';
+import ProfileSettings from './components/profile/ProfileSettings';
 import { 
   mockDashboardStats, 
   getClientPrinters,
@@ -156,6 +158,24 @@ function App() {
         );
       case 'onboarding':
         return <OnboardingDashboard />;
+      case 'pricing':
+        return (
+          <div>
+            <div className="mb-6">
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
+            <PricingDashboard 
+              clients={mockClients}
+              selectedClient={selectedClient}
+            />
+          </div>
+        );
+      case 'profile':
+        return <ProfileSettings />;
       case 'analytics':
         return (
           <div>
@@ -228,86 +248,6 @@ function App() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Active Clients</span>
                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{mockClients.length} Connected</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div>
-            <div className="mb-6">
-              <ClientSelector 
-                clients={mockClients}
-                selectedClient={selectedClient}
-                onClientChange={setSelectedClient}
-              />
-            </div>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                {isOverallView ? 'System Settings' : `${currentClientName} Settings`}
-              </h2>
-              <p className="text-gray-600">
-                {isOverallView 
-                  ? 'Configure system-wide settings and preferences'
-                  : 'Configure client-specific settings and preferences'
-                }
-              </p>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Print Monitoring</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                      <span className="ml-2 text-sm text-gray-700">Monitor all print jobs</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                      <span className="ml-2 text-sm text-gray-700">Track user authentication</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <span className="ml-2 text-sm text-gray-700">Enable cost tracking</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {isOverallView ? 'System Configuration' : 'Client Configuration'}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {isOverallView ? 'System Name' : 'Client Name'}
-                    </label>
-                    <input 
-                      type="text" 
-                      value={currentClientName}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">API Endpoint</label>
-                    <input 
-                      type="text" 
-                      value="https://printmonitor.com/api" 
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      readOnly
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Connection Status</span>
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Setup Required</span>
                   </div>
                 </div>
               </div>
