@@ -1,11 +1,12 @@
 import React from 'react';
-import { Bell, Search, RefreshCw, Download } from 'lucide-react';
+import { Bell, Search, RefreshCw, Download, Building } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
+  clientName?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeTab }) => {
+const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }) => {
   const getPageTitle = (tab: string) => {
     const titles: { [key: string]: string } = {
       dashboard: 'Dashboard Overview',
@@ -23,6 +24,10 @@ const Header: React.FC<HeaderProps> = ({ activeTab }) => {
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center space-x-3 mb-1">
+            <Building className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-600">{clientName}</span>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">{getPageTitle(activeTab)}</h1>
           <p className="text-sm text-gray-600">Monitor and manage your printing infrastructure</p>
         </div>
@@ -48,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab }) => {
           <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative">
             <Bell className="h-5 w-5" />
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              3
+              0
             </span>
           </button>
           

@@ -11,6 +11,7 @@ export interface PrintJob {
   fileSize: string;
   paperSize: string;
   colorMode: 'color' | 'blackwhite';
+  clientId?: string; // Added for multi-client support
 }
 
 export interface Printer {
@@ -25,6 +26,9 @@ export interface Printer {
   lastActivity: Date;
   ipAddress: string;
   department: string;
+  clientId: string; // Added for multi-client support
+  serialNumber?: string;
+  installDate?: Date;
 }
 
 export interface User {
@@ -35,6 +39,9 @@ export interface User {
   pagesTotal: number;
   costTotal: number;
   lastActivity: Date;
+  clientId: string; // Added for multi-client support
+  email?: string;
+  role?: string;
 }
 
 export interface DashboardStats {
@@ -44,4 +51,29 @@ export interface DashboardStats {
   totalCost: number;
   jobsToday: number;
   failureRate: number;
+  clientId?: string; // Added for multi-client support
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  address: string;
+  contactEmail: string;
+  contactPhone: string;
+  subscriptionPlan: 'basic' | 'premium' | 'enterprise';
+  isActive: boolean;
+  createdAt: Date;
+  printerCount: number;
+  userCount: number;
+}
+
+export interface PrinterHealth {
+  printerId: string;
+  paperJam: boolean;
+  lowToner: boolean;
+  lowPaper: boolean;
+  doorOpen: boolean;
+  offline: boolean;
+  lastHealthCheck: Date;
+  errorMessage?: string;
 }

@@ -13,48 +13,48 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
       value: stats.jobsToday.toLocaleString(),
       icon: FileText,
       color: 'bg-blue-500',
-      change: '+12%',
-      changeColor: 'text-green-600'
+      change: stats.jobsToday > 0 ? '+12%' : 'No data',
+      changeColor: stats.jobsToday > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
       title: 'Active Printers',
-      value: `${stats.activePrinters}/4`,
+      value: `${stats.activePrinters}/3`,
       icon: Printer,
       color: 'bg-green-500',
-      change: '75% uptime',
-      changeColor: 'text-green-600'
+      change: stats.activePrinters > 0 ? '100% uptime' : 'Offline',
+      changeColor: stats.activePrinters > 0 ? 'text-green-600' : 'text-red-600'
     },
     {
       title: 'Total Pages',
       value: stats.totalPages.toLocaleString(),
       icon: TrendingUp,
       color: 'bg-purple-500',
-      change: '+8%',
-      changeColor: 'text-green-600'
+      change: stats.totalPages > 0 ? '+8%' : 'No data',
+      changeColor: stats.totalPages > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
       title: 'Total Cost',
       value: `$${stats.totalCost.toLocaleString()}`,
       icon: DollarSign,
       color: 'bg-yellow-500',
-      change: '+5%',
-      changeColor: 'text-green-600'
+      change: stats.totalCost > 0 ? '+5%' : 'No data',
+      changeColor: stats.totalCost > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
       title: 'Failure Rate',
       value: `${stats.failureRate}%`,
       icon: AlertTriangle,
       color: 'bg-red-500',
-      change: '-2%',
-      changeColor: 'text-green-600'
+      change: stats.failureRate === 0 ? 'Excellent' : '-2%',
+      changeColor: stats.failureRate === 0 ? 'text-green-600' : 'text-red-600'
     },
     {
       title: 'Active Users',
-      value: '48',
+      value: '0',
       icon: Users,
       color: 'bg-indigo-500',
-      change: '+3',
-      changeColor: 'text-green-600'
+      change: 'No activity',
+      changeColor: 'text-gray-500'
     }
   ];
 
@@ -69,7 +69,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
                 <p className="text-sm font-medium text-gray-600">{card.title}</p>
                 <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
                 <p className={`text-sm mt-2 ${card.changeColor}`}>
-                  {card.change} from yesterday
+                  {card.change}
                 </p>
               </div>
               <div className={`${card.color} p-3 rounded-lg`}>
