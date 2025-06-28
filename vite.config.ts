@@ -6,5 +6,13 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+    force: true
   },
+  server: {
+    host: true,
+    port: 5173
+  },
+  define: {
+    global: 'globalThis',
+  }
 });
