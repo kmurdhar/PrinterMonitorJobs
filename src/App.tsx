@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
-import StatsCards from './components/dashboard/StatsCards';
+import ClientStatsCards from './components/dashboard/ClientStatsCards';
+import ClientSelector from './components/dashboard/ClientSelector';
 import DashboardCharts from './components/dashboard/DashboardCharts';
 import PrintJobsTable from './components/jobs/PrintJobsTable';
 import PrinterGrid from './components/printers/PrinterGrid';
@@ -12,37 +13,66 @@ import {
   mockPrinters, 
   mockUsers 
 } from './data/mockData';
+import { mockClients, generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User } from './types';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedClient, setSelectedClient] = useState('overall');
   const [printers, setPrinters] = useState<Printer[]>(mockPrinters);
   const [users, setUsers] = useState<User[]>(mockUsers);
   
-  // In production, this would come from authentication/routing
-  const currentClient = "Demo Client - Setup Required";
+  const isOverallView = selectedClient === 'overall';
+  const currentClient = mockClients.find(c => c.id === selectedClient);
+  const currentClientName = isOverallView ? 'Overall System' : currentClient?.name || 'Unknown Client';
+
+  // Get appropriate stats based on view
+  const currentStats = isOverallView 
+    ? generateOverallStats() 
+    : generateClientStats(selectedClient);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
           <div>
-            <StatsCards stats={mockDashboardStats} />
+            <div className="mb-6">
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
+            
+            <ClientStatsCards 
+              stats={currentStats} 
+              isOverallView={isOverallView}
+              clientName={currentClientName}
+            />
+            
             <DashboardCharts />
+            
             {mockPrintJobs.length === 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">Getting Started</h3>
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                  {isOverallView ? 'System Setup Complete' : 'Client Setup Required'}
+                </h3>
                 <p className="text-blue-800 mb-4">
-                  Your printer monitoring system is ready! To start capturing print jobs:
+                  {isOverallView 
+                    ? 'Your multi-client printer monitoring system is ready! Data will populate as clients start using their printers.'
+                    : 'This client\'s printer monitoring is ready! To start capturing print jobs:'
+                  }
                 </p>
-                <ol className="list-decimal list-inside text-blue-800 space-y-2">
-                  <li>Install the Windows Print Listener on client machines</li>
-                  <li>Configure your printers in the system</li>
-                  <li>Set up user accounts and departments</li>
-                  <li>Start monitoring print activity</li>
-                </ol>
+                {!isOverallView && (
+                  <ol className="list-decimal list-inside text-blue-800 space-y-2">
+                    <li>Install the Windows Print Listener on client machines</li>
+                    <li>Configure printers in the system</li>
+                    <li>Set up user accounts and departments</li>
+                    <li>Start monitoring print activity</li>
+                  </ol>
+                )}
                 <p className="text-sm text-blue-600 mt-4">
-                  Check the documentation for detailed setup instructions.
+                  Check the client onboarding documentation for detailed setup instructions.
                 </p>
               </div>
             )}
@@ -51,6 +81,13 @@ function App() {
       case 'jobs':
         return (
           <div>
+            <div className="mb-6">
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
             {mockPrintJobs.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                 <div className="text-gray-400 mb-4">
@@ -58,7 +95,9 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Print Jobs Yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {isOverallView ? 'No Print Jobs Across All Clients' : `No Print Jobs for ${currentClientName}`}
+                </h3>
                 <p className="text-gray-600 mb-4">
                   Print jobs will appear here once the Windows Print Listener is installed and configured.
                 </p>
@@ -74,12 +113,26 @@ function App() {
       case 'printers':
         return (
           <div>
+            <div className="mb-6">
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
             <PrinterGrid printers={printers} onPrintersChange={setPrinters} />
           </div>
         );
       case 'users':
         return (
           <div>
+            <div className="mb-6">
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
             <UsersTable users={users} onUsersChange={setUsers} />
           </div>
         );
@@ -87,8 +140,22 @@ function App() {
         return (
           <div>
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Analytics & Reports</h2>
-              <p className="text-gray-600">Comprehensive printing analytics and cost reports</p>
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                {isOverallView ? 'Overall Analytics & Reports' : `${currentClientName} Analytics`}
+              </h2>
+              <p className="text-gray-600">
+                {isOverallView 
+                  ? 'Comprehensive printing analytics across all clients'
+                  : 'Client-specific printing analytics and cost reports'
+                }
+              </p>
             </div>
             <DashboardCharts />
           </div>
@@ -97,8 +164,22 @@ function App() {
         return (
           <div>
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Real-time Monitoring</h2>
-              <p className="text-gray-600">Live print job queue and system status</p>
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                {isOverallView ? 'System-wide Monitoring' : `${currentClientName} Monitoring`}
+              </h2>
+              <p className="text-gray-600">
+                {isOverallView 
+                  ? 'Real-time monitoring across all clients'
+                  : 'Live print job queue and client system status'
+                }
+              </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -125,8 +206,8 @@ function App() {
                     <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Not Configured</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Disk Space</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Available</span>
+                    <span className="text-sm text-gray-600">Active Clients</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{mockClients.length} Connected</span>
                   </div>
                 </div>
               </div>
@@ -137,8 +218,22 @@ function App() {
         return (
           <div>
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">System Settings</h2>
-              <p className="text-gray-600">Configure print monitoring and system preferences</p>
+              <ClientSelector 
+                clients={mockClients}
+                selectedClient={selectedClient}
+                onClientChange={setSelectedClient}
+              />
+            </div>
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                {isOverallView ? 'System Settings' : `${currentClientName} Settings`}
+              </h2>
+              <p className="text-gray-600">
+                {isOverallView 
+                  ? 'Configure system-wide settings and preferences'
+                  : 'Configure client-specific settings and preferences'
+                }
+              </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -166,13 +261,17 @@ function App() {
               </div>
               
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Configuration</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {isOverallView ? 'System Configuration' : 'Client Configuration'}
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {isOverallView ? 'System Name' : 'Client Name'}
+                    </label>
                     <input 
                       type="text" 
-                      value={currentClient}
+                      value={currentClientName}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       readOnly
                     />
@@ -204,7 +303,7 @@ function App() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="flex-1">
-        <Header activeTab={activeTab} clientName={currentClient} />
+        <Header activeTab={activeTab} clientName={currentClientName} />
         <main className="p-6">
           {renderContent()}
         </main>
