@@ -8,8 +8,7 @@ interface PrinterGridProps {
   onPrintersChange?: (printers: PrinterType[]) => void;
 }
 
-const PrinterGrid: React.FC<PrinterGridProps> = ({ printers: initialPrinters, onPrintersChange }) => {
-  const [printers, setPrinters] = useState<PrinterType[]>(initialPrinters);
+const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -17,13 +16,11 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers: initialPrinters, on
 
   const handleAddPrinter = (newPrinter: PrinterType) => {
     const updatedPrinters = [...printers, newPrinter];
-    setPrinters(updatedPrinters);
     onPrintersChange?.(updatedPrinters);
   };
 
   const handleDeletePrinter = (printerId: string) => {
     const updatedPrinters = printers.filter(printer => printer.id !== printerId);
-    setPrinters(updatedPrinters);
     onPrintersChange?.(updatedPrinters);
   };
 
@@ -82,9 +79,9 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers: initialPrinters, on
           <div className="text-gray-400 mb-4">
             <Printer className="mx-auto h-12 w-12" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Printers Configured</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Printers for This Client</h3>
           <p className="text-gray-600 mb-6">
-            Add your first printer to start monitoring its health, status, and print jobs.
+            This client doesn't have any printers configured yet. Add printers to start monitoring.
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -109,7 +106,7 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers: initialPrinters, on
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Printer Management</h2>
-            <p className="text-gray-600">Monitor printer status, supplies, and performance</p>
+            <p className="text-gray-600">Monitor printer status, supplies, and performance ({printers.length} printers)</p>
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}

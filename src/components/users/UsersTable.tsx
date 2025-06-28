@@ -8,8 +8,7 @@ interface UsersTableProps {
   onUsersChange?: (users: UserType[]) => void;
 }
 
-const UsersTable: React.FC<UsersTableProps> = ({ users: initialUsers, onUsersChange }) => {
-  const [users, setUsers] = useState<UserType[]>(initialUsers);
+const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
@@ -17,13 +16,11 @@ const UsersTable: React.FC<UsersTableProps> = ({ users: initialUsers, onUsersCha
 
   const handleAddUser = (newUser: UserType) => {
     const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
     onUsersChange?.(updatedUsers);
   };
 
   const handleDeleteUser = (userId: string) => {
     const updatedUsers = users.filter(user => user.id !== userId);
-    setUsers(updatedUsers);
     onUsersChange?.(updatedUsers);
   };
 
@@ -46,9 +43,9 @@ const UsersTable: React.FC<UsersTableProps> = ({ users: initialUsers, onUsersCha
           <div className="text-gray-400 mb-4">
             <User className="mx-auto h-12 w-12" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Added</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Users for This Client</h3>
           <p className="text-gray-600 mb-6">
-            Start by adding users to track their printing activity and manage access.
+            This client doesn't have any users configured yet. Add users to track their printing activity.
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -74,7 +71,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users: initialUsers, onUsersCha
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
-              <p className="text-sm text-gray-600 mt-1">Monitor user printing behavior and manage access</p>
+              <p className="text-sm text-gray-600 mt-1">Monitor user printing behavior and manage access ({users.length} users)</p>
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}

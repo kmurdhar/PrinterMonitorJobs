@@ -12,7 +12,9 @@ import {
   mockDashboardStats, 
   getClientPrinters,
   getClientUsers,
-  getClientPrintJobs
+  getClientPrintJobs,
+  mockPrinters,
+  mockUsers
 } from './data/mockData';
 import { mockClients, generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User } from './types';
@@ -25,10 +27,10 @@ function App() {
   const currentClient = mockClients.find(c => c.id === selectedClient);
   const currentClientName = isOverallView ? 'Overall System' : currentClient?.name || 'Unknown Client';
 
-  // Get client-specific data
-  const clientPrinters = getClientPrinters(selectedClient);
-  const clientUsers = getClientUsers(selectedClient);
-  const clientPrintJobs = getClientPrintJobs(selectedClient);
+  // Get client-specific data - this is the key fix!
+  const clientPrinters = isOverallView ? mockPrinters : getClientPrinters(selectedClient);
+  const clientUsers = isOverallView ? mockUsers : getClientUsers(selectedClient);
+  const clientPrintJobs = isOverallView ? getClientPrintJobs('overall') : getClientPrintJobs(selectedClient);
 
   // Get appropriate stats based on view
   const currentStats = isOverallView 
