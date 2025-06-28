@@ -12,9 +12,12 @@ import {
   mockPrinters, 
   mockUsers 
 } from './data/mockData';
+import { Printer, User } from './types';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [printers, setPrinters] = useState<Printer[]>(mockPrinters);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   
   // In production, this would come from authentication/routing
   const currentClient = "Demo Client - Setup Required";
@@ -71,48 +74,13 @@ function App() {
       case 'printers':
         return (
           <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Printer Health Status</h2>
-              <p className="text-gray-600">Monitor printer status, supplies, and performance</p>
-            </div>
-            {mockPrinters.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <div className="text-gray-400 mb-4">
-                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Printers Configured</h3>
-                <p className="text-gray-600 mb-4">
-                  Add your printers to start monitoring their health and status.
-                </p>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Add Printer
-                </button>
-              </div>
-            ) : (
-              <PrinterGrid printers={mockPrinters} />
-            )}
+            <PrinterGrid printers={printers} onPrintersChange={setPrinters} />
           </div>
         );
       case 'users':
         return (
           <div>
-            {mockUsers.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <div className="text-gray-400 mb-4">
-                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No User Activity</h3>
-                <p className="text-gray-600 mb-4">
-                  User activity will be tracked automatically once print jobs start flowing through the system.
-                </p>
-              </div>
-            ) : (
-              <UsersTable users={mockUsers} />
-            )}
+            <UsersTable users={users} onUsersChange={setUsers} />
           </div>
         );
       case 'analytics':
