@@ -5,9 +5,10 @@ interface AddUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddUser: (user: any) => void;
+  selectedClient: string;
 }
 
-const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser }) => {
+const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser, selectedClient }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,7 +29,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser 
       pagesTotal: 0,
       costTotal: 0,
       lastActivity: new Date(),
-      clientId: 'current-client'
+      clientId: selectedClient === 'overall' ? 'default-client' : selectedClient
     };
     onAddUser(newUser);
     setFormData({ name: '', email: '', department: '', role: 'user' });
@@ -51,7 +52,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser 
         pagesTotal: 0,
         costTotal: 0,
         lastActivity: new Date(),
-        clientId: 'current-client'
+        clientId: selectedClient === 'overall' ? 'default-client' : selectedClient
       };
       onAddUser(user);
     }

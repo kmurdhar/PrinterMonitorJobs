@@ -22,6 +22,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import ClientOnboardingWizard from './ClientOnboardingWizard';
+import { Client } from '../../types';
 
 interface OnboardingClient {
   id: string;
@@ -45,6 +46,10 @@ interface ViewClientModalProps {
   client: OnboardingClient | null;
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface OnboardingDashboardProps {
+  onClientsChange?: (clients: Client[]) => void;
 }
 
 const ViewClientModal: React.FC<ViewClientModalProps> = ({ client, isOpen, onClose }) => {
@@ -217,7 +222,7 @@ const ViewClientModal: React.FC<ViewClientModalProps> = ({ client, isOpen, onClo
   );
 };
 
-const OnboardingDashboard: React.FC = () => {
+const OnboardingDashboard: React.FC<OnboardingDashboardProps> = ({ onClientsChange }) => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -279,6 +284,24 @@ const OnboardingDashboard: React.FC = () => {
     };
 
     setOnboardingClients(prev => [newClient, ...prev]);
+
+    // Also update the main clients list if callback is provided
+    if (onClientsChange) {
+      const mainClient: Client = {
+        id: clientData.clientId,
+        name: clientData.companyName,
+        address: clientData.address,
+        contactEmail: clientData.contactEmail,
+        contactPhone: clientData.contactPhone,
+        subscriptionPlan: clientData.subscriptionPlan,
+        isActive: true,
+        createdAt: new Date(),
+        printerCount: clientData.printerCount,
+        userCount: 0
+      };
+      // This would need to be implemented to update the main clients list
+      // onClientsChange([...existingClients, mainClient]);
+    }
   };
 
   const handleViewClient = (client: OnboardingClient) => {

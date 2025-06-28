@@ -5,9 +5,10 @@ interface AddPrinterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddPrinter: (printer: any) => void;
+  selectedClient: string;
 }
 
-const AddPrinterModal: React.FC<AddPrinterModalProps> = ({ isOpen, onClose, onAddPrinter }) => {
+const AddPrinterModal: React.FC<AddPrinterModalProps> = ({ isOpen, onClose, onAddPrinter, selectedClient }) => {
   const [formData, setFormData] = useState({
     name: '',
     model: '',
@@ -29,7 +30,7 @@ const AddPrinterModal: React.FC<AddPrinterModalProps> = ({ isOpen, onClose, onAd
       tonerLevel: 100,
       jobsToday: 0,
       lastActivity: new Date(),
-      clientId: 'current-client',
+      clientId: selectedClient === 'overall' ? 'default-client' : selectedClient,
       installDate: new Date()
     };
     onAddPrinter(newPrinter);

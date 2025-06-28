@@ -12,32 +12,85 @@ import PricingDashboard from './components/pricing/PricingDashboard';
 import ProfileSettings from './components/profile/ProfileSettings';
 import { 
   mockDashboardStats, 
-  getClientPrinters,
-  getClientUsers,
-  getClientPrintJobs,
-  mockPrinters,
-  mockUsers
+  mockPrinters as initialPrinters,
+  mockUsers as initialUsers,
+  mockPrintJobs as initialPrintJobs
 } from './data/mockData';
 import { mockClients, generateOverallStats, generateClientStats } from './data/clientData';
-import { Printer, User } from './types';
+import { Printer, User, PrintJob, Client } from './types';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState('overall');
   
+  // Global state management
+  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [printJobs, setPrintJobs] = useState<PrintJob[]>(initialPrintJobs);
+  
   const isOverallView = selectedClient === 'overall';
-  const currentClient = mockClients.find(c => c.id === selectedClient);
+  const currentClient = clients.find(c => c.id === selectedClient);
   const currentClientName = isOverallView ? 'Overall System' : currentClient?.name || 'Unknown Client';
 
-  // Get client-specific data - this is the key fix!
-  const clientPrinters = isOverallView ? mockPrinters : getClientPrinters(selectedClient);
-  const clientUsers = isOverallView ? mockUsers : getClientUsers(selectedClient);
-  const clientPrintJobs = isOverallView ? getClientPrintJobs('overall') : getClientPrintJobs(selectedClient);
+  // Filter data by client
+  const getClientPrinters = (clientId: string) => {
+    if (clientId === 'overall') return printers;
+    return printers.filter(printer => printer.clientId === clientId);
+  };
+
+  const getClientUsers = (clientId: string) => {
+    if (clientId === 'overall') return users;
+    return users.filter(user => user.clientId === clientId);
+  };
+
+  const getClientPrintJobs = (clientId: string) => {
+    if (clientId === 'overall') return printJobs;
+    return printJobs.filter(job => job.clientId === clientId);
+  };
+
+  // Get client-specific data
+  const clientPrinters = getClientPrinters(selectedClient);
+  const clientUsers = getClientUsers(selectedClient);
+  const clientPrintJobs = getClientPrintJobs(selectedClient);
 
   // Get appropriate stats based on view
   const currentStats = isOverallView 
     ? generateOverallStats() 
     : generateClientStats(selectedClient);
+
+  // Handler functions for CRUD operations
+  const handlePrintersChange = (updatedPrinters: Printer[]) => {
+    if (isOverallView) {
+      setPrinters(updatedPrinters);
+    } else {
+      // Update only the printers for the current client
+      const otherClientPrinters = printers.filter(p => p.clientId !== selectedClient);
+      const newPrintersWithClient = updatedPrinters.map(p => ({
+        ...p,
+        clientId: p.clientId || selectedClient
+      }));
+      setPrinters([...otherClientPrinters, ...newPrintersWithClient]);
+    }
+  };
+
+  const handleUsersChange = (updatedUsers: User[]) => {
+    if (isOverallView) {
+      setUsers(updatedUsers);
+    } else {
+      // Update only the users for the current client
+      const otherClientUsers = users.filter(u => u.clientId !== selectedClient);
+      const newUsersWithClient = updatedUsers.map(u => ({
+        ...u,
+        clientId: u.clientId || selectedClient
+      }));
+      setUsers([...otherClientUsers, ...newUsersWithClient]);
+    }
+  };
+
+  const handleClientsChange = (updatedClients: Client[]) => {
+    setClients(updatedClients);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -46,7 +99,7 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
@@ -91,7 +144,7 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
@@ -123,17 +176,15 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
             </div>
             <PrinterGrid 
               printers={clientPrinters} 
-              onPrintersChange={(updatedPrinters) => {
-                // TODO: Update printers in global state
-                console.log('Printers updated:', updatedPrinters);
-              }} 
+              onPrintersChange={handlePrintersChange}
+              selectedClient={selectedClient}
             />
           </div>
         );
@@ -142,34 +193,36 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
             </div>
             <UsersTable 
               users={clientUsers} 
-              onUsersChange={(updatedUsers) => {
-                // TODO: Update users in global state
-                console.log('Users updated:', updatedUsers);
-              }} 
+              onUsersChange={handleUsersChange}
+              selectedClient={selectedClient}
             />
           </div>
         );
       case 'onboarding':
-        return <OnboardingDashboard />;
+        return (
+          <OnboardingDashboard 
+            onClientsChange={handleClientsChange}
+          />
+        );
       case 'pricing':
         return (
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
             </div>
             <PricingDashboard 
-              clients={mockClients}
+              clients={clients}
               selectedClient={selectedClient}
             />
           </div>
@@ -181,7 +234,7 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
@@ -205,7 +258,7 @@ function App() {
           <div>
             <div className="mb-6">
               <ClientSelector 
-                clients={mockClients}
+                clients={clients}
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
@@ -247,7 +300,7 @@ function App() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Active Clients</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{mockClients.length} Connected</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{clients.length} Connected</span>
                   </div>
                 </div>
               </div>

@@ -6,22 +6,34 @@ import AddPrinterModal from './AddPrinterModal';
 interface PrinterGridProps {
   printers: PrinterType[];
   onPrintersChange?: (printers: PrinterType[]) => void;
+  selectedClient: string;
 }
 
-const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange }) => {
+const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange, selectedClient }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDepartment, setFilterDepartment] = useState('all');
 
   const handleAddPrinter = (newPrinter: PrinterType) => {
-    const updatedPrinters = [...printers, newPrinter];
+    const printerWithClient = {
+      ...newPrinter,
+      clientId: selectedClient === 'overall' ? 'default-client' : selectedClient
+    };
+    const updatedPrinters = [...printers, printerWithClient];
     onPrintersChange?.(updatedPrinters);
   };
 
   const handleDeletePrinter = (printerId: string) => {
-    const updatedPrinters = printers.filter(printer => printer.id !== printerId);
-    onPrintersChange?.(updatedPrinters);
+    if (window.confirm('Are you sure you want to delete this printer?')) {
+      const updatedPrinters = printers.filter(printer => printer.id !== printerId);
+      onPrintersChange?.(updatedPrinters);
+    }
+  };
+
+  const handleEditPrinter = (printer: PrinterType) => {
+    // TODO: Implement edit functionality
+    alert(`Edit functionality for ${printer.name} will be implemented`);
   };
 
   const filteredPrinters = printers.filter(printer => {
@@ -95,6 +107,7 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange })
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onAddPrinter={handleAddPrinter}
+          selectedClient={selectedClient}
         />
       </>
     );
@@ -172,12 +185,17 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange })
                 <span className={`w-3 h-3 rounded-full ${getStatusColor(printer.status)}`}></span>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="flex items-center space-x-1">
-                    <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
-                      <Settings className="h-4 w-4" />
+                    <button 
+                      onClick={() => handleEditPrinter(printer)}
+                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Edit Printer"
+                    >
+                      <Edit className="h-4 w-4" />
                     </button>
                     <button 
                       onClick={() => handleDeletePrinter(printer.id)}
                       className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete Printer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -266,6 +284,7 @@ const PrinterGrid: React.FC<PrinterGridProps> = ({ printers, onPrintersChange })
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddPrinter={handleAddPrinter}
+        selectedClient={selectedClient}
       />
     </>
   );

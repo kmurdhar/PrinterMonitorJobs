@@ -6,22 +6,34 @@ import AddUserModal from './AddUserModal';
 interface UsersTableProps {
   users: UserType[];
   onUsersChange?: (users: UserType[]) => void;
+  selectedClient: string;
 }
 
-const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange }) => {
+const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange, selectedClient }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterRole, setFilterRole] = useState('all');
 
   const handleAddUser = (newUser: UserType) => {
-    const updatedUsers = [...users, newUser];
+    const userWithClient = {
+      ...newUser,
+      clientId: selectedClient === 'overall' ? 'default-client' : selectedClient
+    };
+    const updatedUsers = [...users, userWithClient];
     onUsersChange?.(updatedUsers);
   };
 
   const handleDeleteUser = (userId: string) => {
-    const updatedUsers = users.filter(user => user.id !== userId);
-    onUsersChange?.(updatedUsers);
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      const updatedUsers = users.filter(user => user.id !== userId);
+      onUsersChange?.(updatedUsers);
+    }
+  };
+
+  const handleEditUser = (user: UserType) => {
+    // TODO: Implement edit functionality
+    alert(`Edit functionality for ${user.name} will be implemented`);
   };
 
   const filteredUsers = users.filter(user => {
@@ -59,6 +71,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange }) => {
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onAddUser={handleAddUser}
+          selectedClient={selectedClient}
         />
       </>
     );
@@ -208,12 +221,17 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange }) => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
-                      <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Edit User"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => handleDeleteUser(user.id)}
                         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete User"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -236,6 +254,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onUsersChange }) => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddUser={handleAddUser}
+        selectedClient={selectedClient}
       />
     </>
   );
