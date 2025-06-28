@@ -1,4 +1,5 @@
 import { Client } from '../types';
+import { getClientPrinters, getClientUsers, getClientPrintJobs } from './mockData';
 
 export const mockClients: Client[] = [
   {
@@ -11,7 +12,7 @@ export const mockClients: Client[] = [
     isActive: true,
     createdAt: new Date('2024-01-15'),
     printerCount: 3,
-    userCount: 25
+    userCount: 4
   },
   {
     id: 'marketing-002',
@@ -23,7 +24,7 @@ export const mockClients: Client[] = [
     isActive: true,
     createdAt: new Date('2024-01-20'),
     printerCount: 3,
-    userCount: 18
+    userCount: 3
   },
   {
     id: 'finance-003',
@@ -35,7 +36,7 @@ export const mockClients: Client[] = [
     isActive: true,
     createdAt: new Date('2024-02-01'),
     printerCount: 3,
-    userCount: 22
+    userCount: 3
   },
   {
     id: 'healthcare-004',
@@ -47,7 +48,7 @@ export const mockClients: Client[] = [
     isActive: true,
     createdAt: new Date('2024-02-10'),
     printerCount: 3,
-    userCount: 35
+    userCount: 3
   },
   {
     id: 'education-005',
@@ -59,46 +60,41 @@ export const mockClients: Client[] = [
     isActive: true,
     createdAt: new Date('2024-02-15'),
     printerCount: 3,
-    userCount: 12
+    userCount: 3
   }
 ];
 
 // Generate aggregated stats for overall view
 export const generateOverallStats = () => {
+  const allPrinters = getClientPrinters('overall');
+  const allUsers = getClientUsers('overall');
+  const allJobs = getClientPrintJobs('overall');
+  
   return {
-    totalJobs: 0,
-    totalPages: 0,
-    activePrinters: 15, // 5 clients × 3 printers each
-    totalCost: 0,
-    jobsToday: 0,
-    failureRate: 0,
-    activeUsers: 112, // Sum of all users
-    clientCount: 5
+    totalJobs: allJobs.length,
+    totalPages: allJobs.reduce((sum, job) => sum + job.pages, 0),
+    activePrinters: allPrinters.filter(p => p.status === 'online').length,
+    totalCost: allJobs.reduce((sum, job) => sum + job.cost, 0),
+    jobsToday: allJobs.length,
+    failureRate: 2.1,
+    activeUsers: allUsers.length,
+    clientCount: mockClients.length
   };
 };
 
 // Generate client-specific stats
 export const generateClientStats = (clientId: string) => {
-  const client = mockClients.find(c => c.id === clientId);
-  if (!client) {
-    return {
-      totalJobs: 0,
-      totalPages: 0,
-      activePrinters: 0,
-      totalCost: 0,
-      jobsToday: 0,
-      failureRate: 0,
-      activeUsers: 0
-    };
-  }
+  const clientPrinters = getClientPrinters(clientId);
+  const clientUsers = getClientUsers(clientId);
+  const clientJobs = getClientPrintJobs(clientId);
 
   return {
-    totalJobs: 0,
-    totalPages: 0,
-    activePrinters: 0, // Will be updated when printers are online
-    totalCost: 0,
-    jobsToday: 0,
-    failureRate: 0,
-    activeUsers: 0 // Will be updated when users are active
+    totalJobs: clientJobs.length,
+    totalPages: clientJobs.reduce((sum, job) => sum + job.pages, 0),
+    activePrinters: clientPrinters.filter(p => p.status === 'online').length,
+    totalCost: clientJobs.reduce((sum, job) => sum + job.cost, 0),
+    jobsToday: clientJobs.length,
+    failureRate: clientJobs.length > 0 ? 0 : 0,
+    activeUsers: clientUsers.length
   };
 };

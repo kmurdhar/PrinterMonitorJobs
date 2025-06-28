@@ -10,9 +10,9 @@ import UsersTable from './components/users/UsersTable';
 import OnboardingDashboard from './components/onboarding/OnboardingDashboard';
 import { 
   mockDashboardStats, 
-  mockPrintJobs, 
-  mockPrinters, 
-  mockUsers 
+  getClientPrinters,
+  getClientUsers,
+  getClientPrintJobs
 } from './data/mockData';
 import { mockClients, generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User } from './types';
@@ -20,12 +20,15 @@ import { Printer, User } from './types';
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState('overall');
-  const [printers, setPrinters] = useState<Printer[]>(mockPrinters);
-  const [users, setUsers] = useState<User[]>(mockUsers);
   
   const isOverallView = selectedClient === 'overall';
   const currentClient = mockClients.find(c => c.id === selectedClient);
   const currentClientName = isOverallView ? 'Overall System' : currentClient?.name || 'Unknown Client';
+
+  // Get client-specific data
+  const clientPrinters = getClientPrinters(selectedClient);
+  const clientUsers = getClientUsers(selectedClient);
+  const clientPrintJobs = getClientPrintJobs(selectedClient);
 
   // Get appropriate stats based on view
   const currentStats = isOverallView 
@@ -53,7 +56,7 @@ function App() {
             
             <DashboardCharts />
             
-            {mockPrintJobs.length === 0 && (
+            {clientPrintJobs.length === 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
                 <h3 className="text-lg font-semibold text-blue-900 mb-2">
                   {isOverallView ? 'System Setup Complete' : 'Client Setup Required'}
@@ -89,7 +92,7 @@ function App() {
                 onClientChange={setSelectedClient}
               />
             </div>
-            {mockPrintJobs.length === 0 ? (
+            {clientPrintJobs.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                 <div className="text-gray-400 mb-4">
                   <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +110,7 @@ function App() {
                 </button>
               </div>
             ) : (
-              <PrintJobsTable jobs={mockPrintJobs} />
+              <PrintJobsTable jobs={clientPrintJobs} />
             )}
           </div>
         );
@@ -121,7 +124,13 @@ function App() {
                 onClientChange={setSelectedClient}
               />
             </div>
-            <PrinterGrid printers={printers} onPrintersChange={setPrinters} />
+            <PrinterGrid 
+              printers={clientPrinters} 
+              onPrintersChange={(updatedPrinters) => {
+                // TODO: Update printers in global state
+                console.log('Printers updated:', updatedPrinters);
+              }} 
+            />
           </div>
         );
       case 'users':
@@ -134,7 +143,13 @@ function App() {
                 onClientChange={setSelectedClient}
               />
             </div>
-            <UsersTable users={users} onUsersChange={setUsers} />
+            <UsersTable 
+              users={clientUsers} 
+              onUsersChange={(updatedUsers) => {
+                // TODO: Update users in global state
+                console.log('Users updated:', updatedUsers);
+              }} 
+            />
           </div>
         );
       case 'onboarding':
