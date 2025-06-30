@@ -23,7 +23,9 @@ import {
   Zap,
   AlertTriangle,
   FileText,
-  Network
+  Network,
+  ExternalLink,
+  Package
 } from 'lucide-react';
 
 interface ClientOnboardingWizardProps {
@@ -144,7 +146,8 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({
 ## 🖥️ Windows Listener Installation
 
 ### Step 1: Download Installer
-Download PrintMonitor_Installer.exe from the provided link
+Download PrintMonitor_Installer.exe from:
+https://printmonitor.com/downloads/PrintMonitor_Installer_v1.0.exe
 
 ### Step 2: Install on Each Computer
 Run the installer AS ADMINISTRATOR on every computer that will print:
@@ -251,6 +254,44 @@ SUBDOMAIN=${clientData.subdomain}
     const a = document.createElement('a');
     a.href = url;
     a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_installer_config.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadDemoInstaller = () => {
+    // Create a demo installer script
+    const demoInstaller = `
+@echo off
+echo PrintMonitor Demo Installer
+echo ===========================
+echo.
+echo This is a DEMO installer for ${clientData.companyName}
+echo.
+echo In production, this would be a real Windows executable that:
+echo - Installs the PrintMonitor Windows Service
+echo - Configures API credentials
+echo - Sets up print job monitoring
+echo.
+echo Your Configuration:
+echo Client ID: ${clientData.clientId}
+echo API Key: ${clientData.apiKey}
+echo API Endpoint: https://printmonitor.com/api
+echo.
+echo To simulate installation:
+echo 1. Save this file as 'install_printmonitor.bat'
+echo 2. Run as Administrator
+echo 3. Service would start monitoring print jobs
+echo.
+echo For real deployment, contact support@printmonitor.com
+echo.
+pause
+    `;
+
+    const blob = new Blob([demoInstaller], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PrintMonitor_Demo_Installer_${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}.bat`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -672,8 +713,80 @@ SUBDOMAIN=${clientData.subdomain}
       </div>
 
       <div className="space-y-6">
-        {/* Installation Overview */}
+        {/* Download Options */}
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Package className="h-6 w-6 text-green-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Download Options</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Download className="h-6 w-6 text-blue-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">Demo Installer</h5>
+              <p className="text-sm text-gray-600 mb-3">Simulated installer for demo purposes</p>
+              <button
+                onClick={downloadDemoInstaller}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                Download Demo
+              </button>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">Setup Guide</h5>
+              <p className="text-sm text-gray-600 mb-3">Complete installation instructions</p>
+              <button
+                onClick={downloadSetupGuide}
+                className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                Download Guide
+              </button>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Settings className="h-6 w-6 text-purple-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">Config File</h5>
+              <p className="text-sm text-gray-600 mb-3">Pre-configured settings file</p>
+              <button
+                onClick={downloadInstallerConfig}
+                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              >
+                Download Config
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Production Download Info */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <ExternalLink className="h-6 w-6 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Production Installer Location</h4>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700">
+              In a real production environment, the installer would be available at:
+            </p>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="font-mono text-sm text-gray-800 space-y-2">
+                <div>🔗 <strong>Public Download:</strong> https://printmonitor.com/downloads/</div>
+                <div>🔗 <strong>Client Portal:</strong> https://printmonitor.com/client/downloads</div>
+                <div>🔗 <strong>Direct Link:</strong> https://printmonitor.com/downloads/PrintMonitor_Installer_v1.0.exe</div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600">
+              The installer would be a signed Windows executable with automatic configuration capabilities.
+            </p>
+          </div>
+        </div>
+
+        {/* Installation Overview */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-4">
             <Settings className="h-6 w-6 text-blue-600" />
             <h4 className="text-lg font-semibold text-gray-900">Installation Overview</h4>
@@ -854,6 +967,13 @@ SUBDOMAIN=${clientData.subdomain}
         >
           <Settings className="h-5 w-5" />
           <span>Download Config File</span>
+        </button>
+        <button
+          onClick={downloadDemoInstaller}
+          className="inline-flex items-center space-x-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+        >
+          <Package className="h-5 w-5" />
+          <span>Download Demo Installer</span>
         </button>
       </div>
     </div>
