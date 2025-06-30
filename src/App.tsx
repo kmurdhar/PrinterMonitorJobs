@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import ClientStatsCards from './components/dashboard/ClientStatsCards';
@@ -16,19 +16,41 @@ import {
   mockUsers as initialUsers,
   mockPrintJobs as initialPrintJobs
 } from './data/mockData';
-import { mockClients, generateOverallStats, generateClientStats } from './data/clientData';
+import { generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User, PrintJob, Client } from './types';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState('overall');
   
-  // Global state management
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  // Load clients from localStorage on component mount
+  const [clients, setClients] = useState<Client[]>(() => {
+    const saved = localStorage.getItem('mainClients');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert date strings back to Date objects
+        return parsed.map((client: any) => ({
+          ...client,
+          createdAt: new Date(client.createdAt)
+        }));
+      } catch (error) {
+        console.error('Error parsing saved clients:', error);
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [printJobs, setPrintJobs] = useState<PrintJob[]>(initialPrintJobs);
   
+  // Save clients to localStorage whenever clients change
+  useEffect(() => {
+    localStorage.setItem('mainClients', JSON.stringify(clients));
+  }, [clients]);
+
   const isOverallView = selectedClient === 'overall';
   const currentClient = clients.find(c => c.id === selectedClient);
   const currentClientName = isOverallView ? 'Overall System' : currentClient?.name || 'Unknown Client';

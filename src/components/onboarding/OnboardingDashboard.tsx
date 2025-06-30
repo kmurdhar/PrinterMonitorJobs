@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Building, 
@@ -229,11 +229,32 @@ const OnboardingDashboard: React.FC<OnboardingDashboardProps> = ({ onClientsChan
   const [selectedClient, setSelectedClient] = useState<OnboardingClient | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   
-  // Start with empty onboarding clients array
-  const [onboardingClients, setOnboardingClients] = useState<OnboardingClient[]>([]);
+  // Load onboarding clients from localStorage on component mount
+  const [onboardingClients, setOnboardingClients] = useState<OnboardingClient[]>(() => {
+    const saved = localStorage.getItem('onboardingClients');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert date strings back to Date objects
+        return parsed.map((client: any) => ({
+          ...client,
+          createdAt: new Date(client.createdAt)
+        }));
+      } catch (error) {
+        console.error('Error parsing saved onboarding clients:', error);
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Save to localStorage whenever onboardingClients changes
+  useEffect(() => {
+    localStorage.setItem('onboardingClients', JSON.stringify(onboardingClients));
+  }, [onboardingClients]);
 
   const handleCompleteOnboarding = (clientData: any) => {
-    const newClient: OnboardingClient = {
+    const newOnboardingClient: OnboardingClient = {
       id: Date.now().toString(),
       companyName: clientData.companyName,
       contactName: clientData.contactName,
@@ -241,34 +262,40 @@ const OnboardingDashboard: React.FC<OnboardingDashboardProps> = ({ onClientsChan
       contactPhone: clientData.contactPhone,
       address: clientData.address,
       subscriptionPlan: clientData.subscriptionPlan,
-      status: 'pending',
+      status: 'completed', // Set to completed instead of pending
       createdAt: new Date(),
       printerCount: clientData.printerCount,
       estimatedUsers: clientData.estimatedUsers,
       subdomain: clientData.subdomain,
-      progress: 25,
+      progress: 100, // Set to 100% complete
       clientId: clientData.clientId,
       apiKey: clientData.apiKey
     };
 
-    setOnboardingClients(prev => [newClient, ...prev]);
+    // Add to onboarding clients
+    setOnboardingClients(prev => [newOnboardingClient, ...prev]);
 
-    // Also update the main clients list if callback is provided
+    // Also create a main client record
+    const mainClient: Client = {
+      id: clientData.clientId,
+      name: clientData.companyName,
+      address: clientData.address,
+      contactEmail: clientData.contactEmail,
+      contactPhone: clientData.contactPhone,
+      subscriptionPlan: clientData.subscriptionPlan,
+      isActive: true,
+      createdAt: new Date(),
+      printerCount: clientData.printerCount,
+      userCount: 0
+    };
+
+    // Update the main clients list if callback is provided
     if (onClientsChange) {
-      const mainClient: Client = {
-        id: clientData.clientId,
-        name: clientData.companyName,
-        address: clientData.address,
-        contactEmail: clientData.contactEmail,
-        contactPhone: clientData.contactPhone,
-        subscriptionPlan: clientData.subscriptionPlan,
-        isActive: true,
-        createdAt: new Date(),
-        printerCount: clientData.printerCount,
-        userCount: 0
-      };
-      // This would need to be implemented to update the main clients list
-      // onClientsChange([...existingClients, mainClient]);
+      // Get existing clients from localStorage or use empty array
+      const existingClients = JSON.parse(localStorage.getItem('mainClients') || '[]');
+      const updatedClients = [mainClient, ...existingClients];
+      localStorage.setItem('mainClients', JSON.stringify(updatedClients));
+      onClientsChange(updatedClients);
     }
   };
 
@@ -285,6 +312,17 @@ const OnboardingDashboard: React.FC<OnboardingDashboardProps> = ({ onClientsChan
   const handleDeleteClient = (clientId: string) => {
     if (window.confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
       setOnboardingClients(prev => prev.filter(client => client.id !== clientId));
+      
+      // Also remove from main clients if it exists
+      const existingClients = JSON.parse(localStorage.getItem('mainClients') || '[]');
+      const clientToDelete = onboardingClients.find(c => c.id === clientId);
+      if (clientToDelete) {
+        const updatedMainClients = existingClients.filter((c: Client) => c.id !== clientToDelete.clientId);
+        localStorage.setItem('mainClients', JSON.stringify(updatedMainClients));
+        if (onClientsChange) {
+          onClientsChange(updatedMainClients);
+        }
+      }
     }
   };
 
@@ -463,21 +501,154 @@ const OnboardingDashboard: React.FC<OnboardingDashboardProps> = ({ onClientsChan
         </div>
       </div>
 
-      {/* Empty State */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-        <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Clients Onboarded Yet</h3>
-        <p className="text-gray-600 mb-6">
-          Start by onboarding your first client to begin monitoring their printing infrastructure.
-        </p>
-        <button
-          onClick={() => setIsWizardOpen(true)}
-          className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Onboard First Client</span>
-        </button>
-      </div>
+      {/* Clients Table or Empty State */}
+      {onboardingClients.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Clients Onboarded Yet</h3>
+          <p className="text-gray-600 mb-6">
+            Start by onboarding your first client to begin monitoring their printing infrastructure.
+          </p>
+          <button
+            onClick={() => setIsWizardOpen(true)}
+            className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Onboard First Client</span>
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Onboarded Clients</h3>
+            <p className="text-sm text-gray-600 mt-1">Track the progress of client onboarding</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Company
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredClients.map((client) => (
+                  <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                          <Building className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{client.companyName}</p>
+                          <p className="text-xs text-gray-500">{client.subdomain}.printmonitor.com</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{client.contactName}</p>
+                        <p className="text-xs text-gray-500">{client.contactEmail}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        client.subscriptionPlan === 'enterprise' ? 'bg-purple-100 text-purple-800' :
+                        client.subscriptionPlan === 'premium' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {client.subscriptionPlan}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(client.status)}
+                        <span className={getStatusBadge(client.status)}>
+                          {client.status.charAt(0).toUpperCase() + client.status.slice(1).replace('-', ' ')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-1">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                client.progress === 100 ? 'bg-green-500' :
+                                client.progress >= 50 ? 'bg-blue-500' :
+                                'bg-yellow-500'
+                              }`}
+                              style={{ width: `${client.progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{client.progress}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm text-gray-900">{client.createdAt.toLocaleDateString()}</p>
+                        <p className="text-xs text-gray-500">{client.createdAt.toLocaleTimeString()}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => handleViewClient(client)}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleEditClient(client)}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Edit Client"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClient(client.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete Client"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredClients.length === 0 && onboardingClients.length > 0 && (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No clients match your search criteria.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <ClientOnboardingWizard
         isOpen={isWizardOpen}
