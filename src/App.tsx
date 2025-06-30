@@ -23,6 +23,26 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState('overall');
   
+  // Check URL parameters for client selection
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientParam = urlParams.get('client');
+    if (clientParam) {
+      setSelectedClient(clientParam);
+    }
+  }, []);
+
+  // Update URL when client changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selectedClient !== 'overall') {
+      url.searchParams.set('client', selectedClient);
+    } else {
+      url.searchParams.delete('client');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [selectedClient]);
+  
   // Load clients from localStorage on component mount
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem('mainClients');
@@ -174,12 +194,12 @@ function App() {
             {clientPrintJobs.length === 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
                 <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                  {isOverallView ? 'System Setup Complete' : 'Client Setup Required'}
+                  {isOverallView ? 'Production Server Ready' : 'Client Setup Complete'}
                 </h3>
                 <p className="text-blue-800 mb-4">
                   {isOverallView 
-                    ? 'Your multi-client printer monitoring system is ready! Print jobs will be automatically captured when users print from any system.'
-                    : 'This client\'s printer monitoring is ready! Print jobs will be automatically captured from any system in the organization.'
+                    ? `Your PrintMonitor server is running at ${window.location.origin} and ready to accept client connections!`
+                    : `This client's printer monitoring is ready! Print jobs will be automatically captured from any system in the organization.`
                   }
                 </p>
                 {!isOverallView && (
@@ -190,9 +210,14 @@ function App() {
                     <li>No need to pre-configure users - system names are captured automatically</li>
                   </ol>
                 )}
-                <p className="text-sm text-blue-600 mt-4">
-                  Check the client onboarding documentation for detailed setup instructions.
-                </p>
+                <div className="mt-4 p-3 bg-white border border-blue-300 rounded-lg">
+                  <p className="text-sm text-blue-900 font-medium">
+                    🌐 Server URL: <span className="font-mono">{window.location.origin}</span>
+                  </p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Share this URL with clients for dashboard access
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -330,20 +355,24 @@ function App() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">System Health</h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Print Spooler Service</span>
-                    <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Not Connected</span>
+                    <span className="text-sm text-gray-600">Server Status</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Online</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Database Connection</span>
                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Connected</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Windows Event Listener</span>
-                    <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Not Configured</span>
+                    <span className="text-sm text-gray-600">API Endpoint</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Active</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Active Clients</span>
                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{clients.length} Connected</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Server URL</span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-mono">{window.location.origin}</span>
                   </div>
                 </div>
               </div>

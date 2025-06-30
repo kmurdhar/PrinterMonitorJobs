@@ -25,7 +25,10 @@ import {
   FileText,
   Network,
   ExternalLink,
-  Package
+  Package,
+  Server,
+  Wifi,
+  Code
 } from 'lucide-react';
 
 interface ClientOnboardingWizardProps {
@@ -75,6 +78,11 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({
     apiKey: ''
   });
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Get current server URL dynamically
+  const getServerUrl = () => {
+    return window.location.origin; // This will be http://192.168.29.84:5173 in production
+  };
 
   if (!isOpen) return null;
 
@@ -129,41 +137,184 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({
   };
 
   const downloadSetupGuide = () => {
+    const serverUrl = getServerUrl();
     const setupGuide = `
-# Client Setup Guide - ${clientData.companyName}
+# 🖨️ PrintMonitor Client Setup Guide - ${clientData.companyName}
 
 ## 🏢 Client Information
 - Company: ${clientData.companyName}
 - Client ID: ${clientData.clientId}
-- Subdomain: ${clientData.subdomain}.printmonitor.com
 - Subscription: ${clientData.subscriptionPlan}
+- Setup Date: ${new Date().toLocaleDateString()}
 
 ## 🔑 API Configuration
+- Client ID: ${clientData.clientId}
 - API Key: ${clientData.apiKey}
-- API Endpoint: https://printmonitor.com/api
-- Client Access URL: https://${clientData.subdomain}.printmonitor.com
+- API Endpoint: ${serverUrl}/api
+- Client Dashboard: ${serverUrl}/?client=${clientData.clientId}
 
-## 🖥️ Windows Listener Installation
+## 🖥️ Windows Print Listener Installation
 
-### Step 1: Download Installer
-Download PrintMonitor_Installer.exe from:
-https://printmonitor.com/downloads/PrintMonitor_Installer_v1.0.exe
+### Step 1: Download the Print Listener
+Download the PowerShell script from your PrintMonitor admin:
+- File: PrintMonitor_Listener.ps1
+- Or copy the script provided in this guide
 
 ### Step 2: Install on Each Computer
-Run the installer AS ADMINISTRATOR on every computer that will print:
+Run this PowerShell script AS ADMINISTRATOR on every computer that will print:
 
-1. Right-click PrintMonitor_Installer.exe
-2. Select "Run as Administrator"
-3. Enter the following when prompted:
+1. Open PowerShell as Administrator
+2. Navigate to the script location
+3. Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+4. Run the installation script with your credentials
 
-   Client ID: ${clientData.clientId}
-   API Key: ${clientData.apiKey}
-   API Endpoint: https://printmonitor.com/api
+### Step 3: PowerShell Installation Script
+Save this as 'PrintMonitor_Installer.ps1' and run as Administrator:
 
-### Step 3: Verify Installation
-1. Open Windows Services (services.msc)
-2. Look for "PrintMonitor Service"
-3. Ensure it's running and set to "Automatic"
+\`\`\`powershell
+# PrintMonitor Installation Script for ${clientData.companyName}
+param(
+    [string]$ClientId = "${clientData.clientId}",
+    [string]$ApiEndpoint = "${serverUrl}/api",
+    [string]$ApiKey = "${clientData.apiKey}"
+)
+
+Write-Host "Installing PrintMonitor for ${clientData.companyName}..." -ForegroundColor Green
+
+# Create service directory
+$serviceDir = "C:\\PrintMonitor"
+if (!(Test-Path $serviceDir)) {
+    New-Item -ItemType Directory -Path $serviceDir -Force
+    Write-Host "Created directory: $serviceDir" -ForegroundColor Yellow
+}
+
+# Create configuration file
+$config = @{
+    ClientId = $ClientId
+    ApiEndpoint = $ApiEndpoint
+    ApiKey = $ApiKey
+    CompanyName = "${clientData.companyName}"
+    InstallDate = (Get-Date).ToString()
+}
+$config | ConvertTo-Json | Set-Content "$serviceDir\\config.json"
+
+# Create the print monitoring script
+$monitorScript = @'
+# PrintMonitor Service Script
+$configPath = "C:\\PrintMonitor\\config.json"
+$config = Get-Content $configPath | ConvertFrom-Json
+
+function Write-Log {
+    param([string]$Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $Message" | Add-Content "C:\\PrintMonitor\\printmonitor.log"
+}
+
+function Send-PrintJobData {
+    param($JobData)
+    
+    try {
+        $headers = @{
+            "Authorization" = "Bearer $($config.ApiKey)"
+            "Content-Type" = "application/json"
+            "X-Client-ID" = $config.ClientId
+        }
+        
+        $response = Invoke-RestMethod -Uri "$($config.ApiEndpoint)/print-jobs" -Method POST -Body ($JobData | ConvertTo-Json) -Headers $headers
+        Write-Log "Successfully sent print job: $($JobData.fileName)"
+        return $true
+    }
+    catch {
+        Write-Log "Error sending print job: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Get-SystemInfo {
+    $computerName = $env:COMPUTERNAME
+    $userName = $env:USERNAME
+    
+    # Department detection based on computer name patterns
+    $department = "Unknown"
+    if ($computerName -match "FINANCE|FIN|ACCOUNTING|ACC") { $department = "Finance" }
+    elseif ($computerName -match "MARKETING|MKT|SALES") { $department = "Marketing" }
+    elseif ($computerName -match "HR|HUMAN") { $department = "HR" }
+    elseif ($computerName -match "IT|TECH|DEV") { $department = "IT" }
+    elseif ($computerName -match "OPS|OPERATIONS") { $department = "Operations" }
+    elseif ($computerName -match "ADMIN|MGMT|EXEC") { $department = "Administration" }
+    elseif ($computerName -match "LEGAL|LAW") { $department = "Legal" }
+    
+    return @{
+        SystemName = $computerName
+        UserName = $userName
+        Department = $department
+    }
+}
+
+Write-Log "PrintMonitor started for client: $($config.ClientId)"
+
+# Register for print job events
+Register-WmiEvent -Query "SELECT * FROM Win32_PrintJob" -Action {
+    $job = $Event.SourceEventArgs.NewEvent
+    $systemInfo = Get-SystemInfo
+    
+    $printData = @{
+        fileName = $job.Document
+        user = $systemInfo.SystemName
+        systemName = $systemInfo.SystemName
+        department = $systemInfo.Department
+        printer = $job.Name
+        pages = if ($job.TotalPages) { $job.TotalPages } else { 1 }
+        status = if ($job.Status -eq "OK" -or $job.Status -eq $null) { "success" } else { "failed" }
+        timestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss")
+        fileSize = if ($job.Size) { "$([math]::Round($job.Size/1MB, 2)) MB" } else { "Unknown" }
+        paperSize = "A4"
+        colorMode = "blackwhite"
+        actualUser = $systemInfo.UserName
+        clientId = $config.ClientId
+    }
+    
+    Send-PrintJobData -JobData $printData
+}
+
+# Keep running
+Write-Log "Print monitoring active. Press Ctrl+C to stop."
+try {
+    while ($true) {
+        Start-Sleep -Seconds 30
+        Write-Log "Print Monitor running... (Client: $($config.ClientId))"
+    }
+}
+finally {
+    Write-Log "Print Monitor stopped."
+}
+'@
+
+$monitorScript | Set-Content "$serviceDir\\PrintMonitor.ps1"
+
+Write-Host "Installation completed!" -ForegroundColor Green
+Write-Host "Configuration saved to: $serviceDir\\config.json" -ForegroundColor Yellow
+Write-Host "Monitor script saved to: $serviceDir\\PrintMonitor.ps1" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "To start monitoring:" -ForegroundColor Cyan
+Write-Host "1. Open PowerShell as Administrator" -ForegroundColor White
+Write-Host "2. Run: C:\\PrintMonitor\\PrintMonitor.ps1" -ForegroundColor White
+Write-Host ""
+Write-Host "Your dashboard: ${serverUrl}/?client=${clientData.clientId}" -ForegroundColor Green
+\`\`\`
+
+### Step 4: Start the Print Monitor
+After installation, start the monitor on each computer:
+
+1. Open PowerShell as Administrator
+2. Run: C:\\PrintMonitor\\PrintMonitor.ps1
+3. Leave PowerShell window open (minimized is fine)
+4. Print a test document to verify it's working
+
+### Step 5: Verify Installation
+1. Print any document from any application
+2. Check your dashboard at: ${serverUrl}/?client=${clientData.clientId}
+3. Print job should appear within 30 seconds
 
 ## 🖨️ How Printer Mapping Works
 
@@ -198,100 +349,414 @@ For best department detection, name computers like:
 
 ### Test Print Job:
 1. Print any document from any application
-2. Check dashboard at: https://${clientData.subdomain}.printmonitor.com
+2. Check dashboard at: ${serverUrl}/?client=${clientData.clientId}
 3. Print job should appear within 30 seconds
 
 ### Troubleshooting:
-- Ensure Print Listener service is running
-- Check firewall allows outbound HTTPS (port 443)
+- Ensure PowerShell script is running as Administrator
+- Check that computer can reach ${serverUrl}
 - Verify API credentials are correct
+- Check Windows Event Viewer for errors
 
 ## 📞 Support Information:
-- Email: support@printmonitor.com
-- Phone: +1-800-PRINT-MON
-- Portal: https://support.printmonitor.com
+- Server: ${serverUrl}
+- Client Dashboard: ${serverUrl}/?client=${clientData.clientId}
+- Setup Date: ${new Date().toLocaleDateString()}
 
 ## 🚀 Next Steps:
-1. Install Print Listener on all computers
+1. Install Print Listener on all computers that will print
 2. Test with sample print jobs
-3. Configure ${clientData.printerCount} printers as needed
-4. Set up user accounts for ${clientData.estimatedUsers} users
-5. Monitor dashboard for real-time data
+3. Monitor dashboard for real-time data
+4. Configure ${clientData.printerCount} printers as needed
+5. Set up user accounts for ${clientData.estimatedUsers} users
 
 Installation Date: ${new Date().toLocaleDateString()}
 Setup by: PrintMonitor Admin Team
+Server: ${serverUrl}
     `;
 
     const blob = new Blob([setupGuide], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_setup_guide.txt`;
+    a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_PrintMonitor_Setup_Guide.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const downloadInstallerConfig = () => {
+    const serverUrl = getServerUrl();
     const configFile = `
 # PrintMonitor Configuration File
 # Company: ${clientData.companyName}
+# Generated: ${new Date().toLocaleString()}
 
 CLIENT_ID=${clientData.clientId}
 API_KEY=${clientData.apiKey}
-API_ENDPOINT=https://printmonitor.com/api
+API_ENDPOINT=${serverUrl}/api
 CLIENT_NAME=${clientData.companyName}
 SUBDOMAIN=${clientData.subdomain}
+SERVER_URL=${serverUrl}
+DASHBOARD_URL=${serverUrl}/?client=${clientData.clientId}
 
 # Installation Instructions:
 # 1. Save this file as 'printmonitor.config'
-# 2. Place in same folder as installer
-# 3. Run installer as Administrator
-# 4. Installer will auto-load these settings
+# 2. Use these values in the PowerShell installation script
+# 3. Run PowerShell script as Administrator on each computer
+# 4. Verify installation by printing a test document
+
+# Support:
+# Dashboard: ${serverUrl}/?client=${clientData.clientId}
+# Server: ${serverUrl}
     `;
 
     const blob = new Blob([configFile], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_installer_config.txt`;
+    a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_config.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const downloadDemoInstaller = () => {
-    // Create a demo installer script
-    const demoInstaller = `
+  const downloadProductionInstaller = () => {
+    const serverUrl = getServerUrl();
+    const productionInstaller = `
+# PrintMonitor Production Installer for ${clientData.companyName}
+# Server: ${serverUrl}
+# Generated: ${new Date().toLocaleString()}
+
+param(
+    [string]$ClientId = "${clientData.clientId}",
+    [string]$ApiEndpoint = "${serverUrl}/api",
+    [string]$ApiKey = "${clientData.apiKey}"
+)
+
+Write-Host "=== PrintMonitor Production Installer ===" -ForegroundColor Green
+Write-Host "Company: ${clientData.companyName}" -ForegroundColor Yellow
+Write-Host "Server: ${serverUrl}" -ForegroundColor Yellow
+Write-Host "Client ID: $ClientId" -ForegroundColor Yellow
+Write-Host ""
+
+# Check if running as Administrator
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "ERROR: This script must be run as Administrator!" -ForegroundColor Red
+    Write-Host "Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
+    pause
+    exit 1
+}
+
+Write-Host "✓ Running as Administrator" -ForegroundColor Green
+
+# Create service directory
+$serviceDir = "C:\\PrintMonitor"
+Write-Host "Creating service directory..." -ForegroundColor Cyan
+if (!(Test-Path $serviceDir)) {
+    New-Item -ItemType Directory -Path $serviceDir -Force | Out-Null
+    Write-Host "✓ Created directory: $serviceDir" -ForegroundColor Green
+} else {
+    Write-Host "✓ Directory already exists: $serviceDir" -ForegroundColor Green
+}
+
+# Create logs directory
+$logsDir = "$serviceDir\\logs"
+if (!(Test-Path $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+    Write-Host "✓ Created logs directory: $logsDir" -ForegroundColor Green
+}
+
+# Test API connectivity
+Write-Host "Testing API connectivity..." -ForegroundColor Cyan
+try {
+    $testResponse = Invoke-WebRequest -Uri $ApiEndpoint -Method GET -TimeoutSec 10
+    Write-Host "✓ API endpoint is reachable" -ForegroundColor Green
+} catch {
+    Write-Host "⚠ Warning: Could not reach API endpoint" -ForegroundColor Yellow
+    Write-Host "  This might be normal if the server is not running yet" -ForegroundColor Gray
+}
+
+# Create configuration file
+Write-Host "Creating configuration file..." -ForegroundColor Cyan
+$config = @{
+    ClientId = $ClientId
+    ApiEndpoint = $ApiEndpoint
+    ApiKey = $ApiKey
+    CompanyName = "${clientData.companyName}"
+    ServerUrl = "${serverUrl}"
+    DashboardUrl = "${serverUrl}/?client=$ClientId"
+    InstallDate = (Get-Date).ToString()
+    ComputerName = $env:COMPUTERNAME
+    UserName = $env:USERNAME
+}
+$config | ConvertTo-Json -Depth 3 | Set-Content "$serviceDir\\config.json"
+Write-Host "✓ Configuration saved to: $serviceDir\\config.json" -ForegroundColor Green
+
+# Create the print monitoring script
+Write-Host "Installing print monitoring script..." -ForegroundColor Cyan
+$monitorScript = @'
+# PrintMonitor Production Service
+# Auto-generated for ${clientData.companyName}
+
+$configPath = "C:\\PrintMonitor\\config.json"
+$logPath = "C:\\PrintMonitor\\logs\\printmonitor.log"
+
+if (!(Test-Path $configPath)) {
+    Write-Error "Configuration file not found: $configPath"
+    exit 1
+}
+
+$config = Get-Content $configPath | ConvertFrom-Json
+
+function Write-Log {
+    param([string]$Message, [string]$Level = "INFO")
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "[$timestamp] [$Level] $Message"
+    $logEntry | Add-Content $logPath
+    Write-Host $logEntry
+}
+
+function Send-PrintJobData {
+    param($JobData)
+    
+    try {
+        $headers = @{
+            "Authorization" = "Bearer $($config.ApiKey)"
+            "Content-Type" = "application/json"
+            "X-Client-ID" = $config.ClientId
+            "User-Agent" = "PrintMonitor-Client/1.0"
+        }
+        
+        $jsonData = $JobData | ConvertTo-Json -Depth 3
+        $response = Invoke-RestMethod -Uri "$($config.ApiEndpoint)/print-jobs" -Method POST -Body $jsonData -Headers $headers -TimeoutSec 30
+        
+        Write-Log "✓ Print job sent successfully: $($JobData.fileName)" "SUCCESS"
+        return $true
+    }
+    catch {
+        Write-Log "✗ Failed to send print job: $($_.Exception.Message)" "ERROR"
+        Write-Log "  Job data: $($JobData.fileName) from $($JobData.systemName)" "ERROR"
+        return $false
+    }
+}
+
+function Get-SystemInfo {
+    $computerName = $env:COMPUTERNAME
+    $userName = $env:USERNAME
+    
+    # Enhanced department detection
+    $department = "Unknown"
+    $computerUpper = $computerName.ToUpper()
+    
+    if ($computerUpper -match "FINANCE|FIN|ACCOUNTING|ACC|ACCT") { $department = "Finance" }
+    elseif ($computerUpper -match "MARKETING|MKT|SALES|SELL") { $department = "Marketing" }
+    elseif ($computerUpper -match "HR|HUMAN|PEOPLE") { $department = "HR" }
+    elseif ($computerUpper -match "IT|TECH|DEV|SUPPORT|SYS") { $department = "IT" }
+    elseif ($computerUpper -match "OPS|OPERATIONS|PROD") { $department = "Operations" }
+    elseif ($computerUpper -match "ADMIN|MGMT|EXEC|OFFICE") { $department = "Administration" }
+    elseif ($computerUpper -match "LEGAL|LAW|COMPLIANCE") { $department = "Legal" }
+    elseif ($computerUpper -match "RECEPTION|FRONT|LOBBY") { $department = "Reception" }
+    
+    return @{
+        SystemName = $computerName
+        UserName = $userName
+        Department = $department
+        Domain = $env:USERDOMAIN
+        LogonServer = $env:LOGONSERVER
+    }
+}
+
+function Get-PrinterInfo {
+    param([string]$PrinterName)
+    
+    try {
+        $printer = Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue
+        if ($printer) {
+            return @{
+                Model = $printer.DriverName
+                Location = $printer.Location
+                Status = $printer.PrinterStatus
+                PortName = $printer.PortName
+                Shared = $printer.Shared
+            }
+        }
+    }
+    catch {
+        Write-Log "Could not get printer info for: $PrinterName" "WARN"
+    }
+    
+    return @{
+        Model = "Unknown"
+        Location = "Unknown"
+        Status = "Unknown"
+        PortName = "Unknown"
+        Shared = $false
+    }
+}
+
+# Startup
+Write-Log "=== PrintMonitor Service Starting ===" "INFO"
+Write-Log "Company: $($config.CompanyName)" "INFO"
+Write-Log "Client ID: $($config.ClientId)" "INFO"
+Write-Log "API Endpoint: $($config.ApiEndpoint)" "INFO"
+Write-Log "Computer: $($env:COMPUTERNAME)" "INFO"
+Write-Log "User: $($env:USERNAME)" "INFO"
+Write-Log "Dashboard: $($config.DashboardUrl)" "INFO"
+
+# Test initial connectivity
+try {
+    $testHeaders = @{
+        "Authorization" = "Bearer $($config.ApiKey)"
+        "X-Client-ID" = $config.ClientId
+    }
+    $healthCheck = Invoke-RestMethod -Uri "$($config.ApiEndpoint)/health" -Headers $testHeaders -TimeoutSec 10 -ErrorAction Stop
+    Write-Log "✓ API connectivity verified" "SUCCESS"
+} catch {
+    Write-Log "⚠ API connectivity test failed: $($_.Exception.Message)" "WARN"
+    Write-Log "  Service will continue and retry on print jobs" "INFO"
+}
+
+# Register for print job events
+Write-Log "Registering for print job events..." "INFO"
+Register-WmiEvent -Query "SELECT * FROM Win32_PrintJob" -Action {
+    $job = $Event.SourceEventArgs.NewEvent
+    $systemInfo = Get-SystemInfo
+    $printerInfo = Get-PrinterInfo -PrinterName $job.Name
+    
+    # Determine color mode based on printer name/model
+    $colorMode = "blackwhite"
+    if ($printerInfo.Model -match "color|colour|pixma|inkjet") {
+        $colorMode = "color"
+    }
+    
+    # Calculate file size
+    $fileSizeStr = "Unknown"
+    if ($job.Size -and $job.Size -gt 0) {
+        $fileSizeMB = [math]::Round($job.Size / 1MB, 2)
+        $fileSizeStr = "$fileSizeMB MB"
+    }
+    
+    $printData = @{
+        fileName = $job.Document
+        user = $systemInfo.SystemName
+        systemName = $systemInfo.SystemName
+        department = $systemInfo.Department
+        printer = $job.Name
+        printerModel = $printerInfo.Model
+        printerLocation = $printerInfo.Location
+        pages = if ($job.TotalPages -and $job.TotalPages -gt 0) { $job.TotalPages } else { 1 }
+        status = if ($job.Status -eq "OK" -or $job.Status -eq $null -or $job.Status -eq "") { "success" } else { "failed" }
+        timestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss")
+        fileSize = $fileSizeStr
+        paperSize = "A4"
+        colorMode = $colorMode
+        actualUser = $systemInfo.UserName
+        domain = $systemInfo.Domain
+        clientId = $config.ClientId
+        jobId = $job.JobId
+        priority = $job.Priority
+        submitTime = $job.TimeSubmitted
+    }
+    
+    Write-Log "📄 Print job detected: $($printData.fileName) ($($printData.pages) pages) from $($printData.systemName) to $($printData.printer)" "INFO"
+    
+    $success = Send-PrintJobData -JobData $printData
+    
+    if ($success) {
+        Write-Log "✓ Print job successfully processed" "SUCCESS"
+    } else {
+        Write-Log "✗ Failed to process print job" "ERROR"
+    }
+}
+
+Write-Log "✓ Print monitoring is now active" "SUCCESS"
+Write-Log "Dashboard available at: $($config.DashboardUrl)" "INFO"
+
+# Keep the service running
+try {
+    while ($true) {
+        Start-Sleep -Seconds 60
+        # Periodic heartbeat
+        $timestamp = Get-Date -Format "HH:mm:ss"
+        Write-Log "💓 Service heartbeat - $timestamp" "DEBUG"
+    }
+}
+catch {
+    Write-Log "Service interrupted: $($_.Exception.Message)" "ERROR"
+}
+finally {
+    Write-Log "=== PrintMonitor Service Stopped ===" "INFO"
+}
+'@
+
+$monitorScript | Set-Content "$serviceDir\\PrintMonitor.ps1"
+Write-Host "✓ Print monitoring script installed" -ForegroundColor Green
+
+# Create start script
+$startScript = @"
 @echo off
-echo PrintMonitor Demo Installer
-echo ===========================
+echo Starting PrintMonitor for ${clientData.companyName}...
+echo Dashboard: ${serverUrl}/?client=${clientData.clientId}
 echo.
-echo This is a DEMO installer for ${clientData.companyName}
-echo.
-echo In production, this would be a real Windows executable that:
-echo - Installs the PrintMonitor Windows Service
-echo - Configures API credentials
-echo - Sets up print job monitoring
-echo.
-echo Your Configuration:
-echo Client ID: ${clientData.clientId}
-echo API Key: ${clientData.apiKey}
-echo API Endpoint: https://printmonitor.com/api
-echo.
-echo To simulate installation:
-echo 1. Save this file as 'install_printmonitor.bat'
-echo 2. Run as Administrator
-echo 3. Service would start monitoring print jobs
-echo.
-echo For real deployment, contact support@printmonitor.com
-echo.
+powershell.exe -ExecutionPolicy Bypass -File "C:\\PrintMonitor\\PrintMonitor.ps1"
+"@
+
+$startScript | Set-Content "$serviceDir\\Start_PrintMonitor.bat"
+Write-Host "✓ Start script created: $serviceDir\\Start_PrintMonitor.bat" -ForegroundColor Green
+
+# Set execution policy
+Write-Host "Setting PowerShell execution policy..." -ForegroundColor Cyan
+try {
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    Write-Host "✓ PowerShell execution policy set" -ForegroundColor Green
+} catch {
+    Write-Host "⚠ Could not set execution policy automatically" -ForegroundColor Yellow
+    Write-Host "  You may need to run: Set-ExecutionPolicy RemoteSigned" -ForegroundColor Gray
+}
+
+Write-Host ""
+Write-Host "=== Installation Complete! ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "📁 Installation Directory: $serviceDir" -ForegroundColor Cyan
+Write-Host "📊 Dashboard URL: ${serverUrl}/?client=${clientData.clientId}" -ForegroundColor Cyan
+Write-Host "📋 Configuration: $serviceDir\\config.json" -ForegroundColor Cyan
+Write-Host "📜 Logs: $serviceDir\\logs\\printmonitor.log" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🚀 To start monitoring:" -ForegroundColor Yellow
+Write-Host "   Option 1: Double-click: $serviceDir\\Start_PrintMonitor.bat" -ForegroundColor White
+Write-Host "   Option 2: Run PowerShell as Admin and execute: $serviceDir\\PrintMonitor.ps1" -ForegroundColor White
+Write-Host ""
+Write-Host "🧪 To test:" -ForegroundColor Yellow
+Write-Host "   1. Start the monitoring service" -ForegroundColor White
+Write-Host "   2. Print any document from any application" -ForegroundColor White
+Write-Host "   3. Check dashboard: ${serverUrl}/?client=${clientData.clientId}" -ForegroundColor White
+Write-Host "   4. Print job should appear within 30 seconds" -ForegroundColor White
+Write-Host ""
+Write-Host "📞 Support: Check dashboard for real-time status" -ForegroundColor Cyan
+Write-Host ""
+
+# Create desktop shortcut
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+$shortcutPath = "$desktopPath\\PrintMonitor Dashboard.url"
+$shortcutContent = @"
+[InternetShortcut]
+URL=${serverUrl}/?client=${clientData.clientId}
+IconFile=shell32.dll
+IconIndex=13
+"@
+$shortcutContent | Set-Content $shortcutPath
+Write-Host "✓ Desktop shortcut created: PrintMonitor Dashboard" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Installation completed successfully!" -ForegroundColor Green
+Write-Host "You can now start monitoring print jobs." -ForegroundColor Green
 pause
     `;
 
-    const blob = new Blob([demoInstaller], { type: 'text/plain' });
+    const blob = new Blob([productionInstaller], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `PrintMonitor_Demo_Installer_${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}.bat`;
+    a.download = `PrintMonitor_Production_Installer_${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}.ps1`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -639,17 +1104,17 @@ pause
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Client Access URL
+              Client Dashboard URL
             </label>
             <div className="flex items-center space-x-2">
               <input
                 type="text"
-                value={`https://${clientData.subdomain}.printmonitor.com`}
+                value={`${getServerUrl()}/?client=${clientData.clientId}`}
                 readOnly
                 className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm"
               />
               <button
-                onClick={() => copyToClipboard(`https://${clientData.subdomain}.printmonitor.com`, 'url')}
+                onClick={() => copyToClipboard(`${getServerUrl()}/?client=${clientData.clientId}`, 'url')}
                 className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {copiedField === 'url' ? (
@@ -668,12 +1133,12 @@ pause
             <div className="flex items-center space-x-2">
               <input
                 type="text"
-                value="https://printmonitor.com/api"
+                value={`${getServerUrl()}/api`}
                 readOnly
                 className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm"
               />
               <button
-                onClick={() => copyToClipboard('https://printmonitor.com/api', 'endpoint')}
+                onClick={() => copyToClipboard(`${getServerUrl()}/api`, 'endpoint')}
                 className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {copiedField === 'endpoint' ? (
@@ -683,6 +1148,20 @@ pause
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-start space-x-3">
+          <Server className="h-5 w-5 text-green-600 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-green-900">Production Server Information</h4>
+            <p className="text-sm text-green-800 mt-1">
+              <strong>Server URL:</strong> {getServerUrl()}<br/>
+              <strong>Network Access:</strong> Available on your local network<br/>
+              <strong>Client Dashboard:</strong> {getServerUrl()}/?client={clientData.clientId}
+            </p>
           </div>
         </div>
       </div>
@@ -708,29 +1187,57 @@ pause
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Monitor className="h-8 w-8 text-green-600" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Client Installation Guide</h3>
-        <p className="text-gray-600">How the client will set up and use the system</p>
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">Production Installation Guide</h3>
+        <p className="text-gray-600">How the client will set up and use the system on your server</p>
       </div>
 
       <div className="space-y-6">
+        {/* Server Information */}
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Server className="h-6 w-6 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Production Server Details</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 mb-2">Server Information</h5>
+              <div className="space-y-2 text-sm">
+                <div><strong>Server URL:</strong> {getServerUrl()}</div>
+                <div><strong>Network:</strong> Local Network Access</div>
+                <div><strong>API Endpoint:</strong> {getServerUrl()}/api</div>
+                <div><strong>Status:</strong> <span className="text-green-600">● Online</span></div>
+              </div>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 mb-2">Client Access</h5>
+              <div className="space-y-2 text-sm">
+                <div><strong>Dashboard:</strong> {getServerUrl()}/?client={clientData.clientId}</div>
+                <div><strong>Client ID:</strong> {clientData.clientId}</div>
+                <div><strong>Company:</strong> {clientData.companyName}</div>
+                <div><strong>Setup:</strong> <span className="text-blue-600">Ready</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Download Options */}
         <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-4">
             <Package className="h-6 w-6 text-green-600" />
-            <h4 className="text-lg font-semibold text-gray-900">Download Options</h4>
+            <h4 className="text-lg font-semibold text-gray-900">Production Installation Files</h4>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Download className="h-6 w-6 text-blue-600" />
+                <Code className="h-6 w-6 text-blue-600" />
               </div>
-              <h5 className="font-medium text-gray-900 mb-2">Demo Installer</h5>
-              <p className="text-sm text-gray-600 mb-3">Simulated installer for demo purposes</p>
+              <h5 className="font-medium text-gray-900 mb-2">Production Installer</h5>
+              <p className="text-sm text-gray-600 mb-3">Complete PowerShell installer for client computers</p>
               <button
-                onClick={downloadDemoInstaller}
+                onClick={downloadProductionInstaller}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
-                Download Demo
+                Download Installer
               </button>
             </div>
             <div className="text-center">
@@ -762,56 +1269,33 @@ pause
           </div>
         </div>
 
-        {/* Production Download Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <ExternalLink className="h-6 w-6 text-blue-600" />
-            <h4 className="text-lg font-semibold text-gray-900">Production Installer Location</h4>
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm text-gray-700">
-              In a real production environment, the installer would be available at:
-            </p>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="font-mono text-sm text-gray-800 space-y-2">
-                <div>🔗 <strong>Public Download:</strong> https://printmonitor.com/downloads/</div>
-                <div>🔗 <strong>Client Portal:</strong> https://printmonitor.com/client/downloads</div>
-                <div>🔗 <strong>Direct Link:</strong> https://printmonitor.com/downloads/PrintMonitor_Installer_v1.0.exe</div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600">
-              The installer would be a signed Windows executable with automatic configuration capabilities.
-            </p>
-          </div>
-        </div>
-
         {/* Installation Overview */}
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-4">
             <Settings className="h-6 w-6 text-blue-600" />
-            <h4 className="text-lg font-semibold text-gray-900">Installation Overview</h4>
+            <h4 className="text-lg font-semibold text-gray-900">Installation Process</h4>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Download className="h-6 w-6 text-blue-600" />
               </div>
-              <h5 className="font-medium text-gray-900 mb-2">1. Download Installer</h5>
-              <p className="text-sm text-gray-600">Client downloads PrintMonitor installer</p>
+              <h5 className="font-medium text-gray-900 mb-2">1. Download Files</h5>
+              <p className="text-sm text-gray-600">Client downloads the PowerShell installer and config files</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Monitor className="h-6 w-6 text-green-600" />
               </div>
               <h5 className="font-medium text-gray-900 mb-2">2. Install on Computers</h5>
-              <p className="text-sm text-gray-600">Install on each computer that will print</p>
+              <p className="text-sm text-gray-600">Run installer as Administrator on each computer that will print</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Zap className="h-6 w-6 text-purple-600" />
               </div>
               <h5 className="font-medium text-gray-900 mb-2">3. Start Monitoring</h5>
-              <p className="text-sm text-gray-600">Print jobs automatically captured</p>
+              <p className="text-sm text-gray-600">Print jobs automatically captured and sent to your server</p>
             </div>
           </div>
         </div>
@@ -829,7 +1313,7 @@ pause
               </div>
               <div>
                 <h5 className="font-medium text-gray-900">Automatic Discovery</h5>
-                <p className="text-sm text-gray-600">When a user prints, the system automatically detects and adds the printer to the dashboard. No manual configuration needed!</p>
+                <p className="text-sm text-gray-600">When a user prints, the system automatically detects and adds the printer to your dashboard. No manual configuration needed!</p>
               </div>
             </div>
             <div className="flex items-start space-x-4">
@@ -847,7 +1331,7 @@ pause
               </div>
               <div>
                 <h5 className="font-medium text-gray-900">Real-time Monitoring</h5>
-                <p className="text-sm text-gray-600">All print jobs appear in the dashboard within 30 seconds of printing</p>
+                <p className="text-sm text-gray-600">All print jobs appear in your dashboard at {getServerUrl()} within 30 seconds of printing</p>
               </div>
             </div>
           </div>
@@ -887,9 +1371,10 @@ pause
               <ul className="text-sm text-yellow-800 mt-2 space-y-1">
                 <li>• Install Print Listener on EVERY computer that will print</li>
                 <li>• Run installer as Administrator</li>
-                <li>• Ensure firewall allows outbound HTTPS connections</li>
+                <li>• Ensure computers can reach your server at {getServerUrl()}</li>
                 <li>• End users don't need to change how they print</li>
                 <li>• Printers are discovered automatically when first used</li>
+                <li>• Dashboard available at {getServerUrl()}/?client={clientData.clientId}</li>
               </ul>
             </div>
           </div>
@@ -936,8 +1421,12 @@ pause
             <span className="ml-2 text-gray-900">{clientData.estimatedUsers}</span>
           </div>
           <div className="md:col-span-2">
-            <span className="font-medium text-gray-700">Access URL:</span>
-            <span className="ml-2 text-blue-600">{clientData.subdomain}.printmonitor.com</span>
+            <span className="font-medium text-gray-700">Server URL:</span>
+            <span className="ml-2 text-blue-600">{getServerUrl()}</span>
+          </div>
+          <div className="md:col-span-2">
+            <span className="font-medium text-gray-700">Client Dashboard:</span>
+            <span className="ml-2 text-blue-600">{getServerUrl()}/?client={clientData.clientId}</span>
           </div>
         </div>
       </div>
@@ -949,7 +1438,7 @@ pause
           <li>Send the installer and credentials to the client's IT team</li>
           <li>Guide them through installing Print Listener on all computers</li>
           <li>Test with sample print jobs to verify data capture</li>
-          <li>Monitor the dashboard for incoming print job data</li>
+          <li>Monitor the dashboard at {getServerUrl()} for incoming print job data</li>
         </ol>
       </div>
 
@@ -969,11 +1458,11 @@ pause
           <span>Download Config File</span>
         </button>
         <button
-          onClick={downloadDemoInstaller}
+          onClick={downloadProductionInstaller}
           className="inline-flex items-center space-x-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
         >
           <Package className="h-5 w-5" />
-          <span>Download Demo Installer</span>
+          <span>Download Production Installer</span>
         </button>
       </div>
     </div>
@@ -984,8 +1473,8 @@ pause
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Client Onboarding</h2>
-            <p className="text-gray-600">Set up a new client for printer monitoring</p>
+            <h2 className="text-2xl font-bold text-gray-900">Production Client Onboarding</h2>
+            <p className="text-gray-600">Set up a new client for your PrintMonitor server at {getServerUrl()}</p>
           </div>
           <button
             onClick={onClose}

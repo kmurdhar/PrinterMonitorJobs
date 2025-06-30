@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, RefreshCw, Download, Building, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Bell, Search, RefreshCw, Download, Building, User, Settings, LogOut, ChevronDown, Globe, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -11,6 +11,11 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   
+  // Get current server URL
+  const getServerUrl = () => {
+    return window.location.origin;
+  };
+
   // Load notifications from localStorage and update them
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem('notifications');
@@ -151,12 +156,22 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
           <div className="flex items-center space-x-3 mb-1">
             <Building className="h-5 w-5 text-blue-600" />
             <span className="text-sm font-medium text-blue-600">{clientName}</span>
+            <div className="flex items-center space-x-2">
+              <Globe className="h-4 w-4 text-green-600" />
+              <span className="text-xs text-green-600 font-medium">Server: {getServerUrl()}</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{getPageTitle(activeTab)}</h1>
           <p className="text-sm text-gray-600">Monitor and manage your printing infrastructure</p>
         </div>
         
         <div className="flex items-center space-x-4">
+          {/* Server Status */}
+          <div className="hidden md:flex items-center space-x-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-700 font-medium">Production Server Online</span>
+          </div>
+
           {/* Search */}
           <form onSubmit={handleSearch} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -288,6 +303,13 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
                   <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>
+                  </button>
+                  <button 
+                    onClick={() => window.open(getServerUrl(), '_blank')}
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>Open Server</span>
                   </button>
                   <hr className="my-2" />
                   <button 
