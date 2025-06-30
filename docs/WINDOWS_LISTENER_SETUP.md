@@ -1,7 +1,7 @@
 # Windows Print Listener Setup Guide
 
 ## Overview
-This guide explains how to set up the Windows Print Listener service on client machines to capture print job events and send them to the central monitoring system.
+This guide explains how to set up the Windows Print Listener service on client machines to automatically capture print job events from any user/system and send them to the central monitoring system.
 
 ## Prerequisites
 - Windows 10/11 or Windows Server 2016+
@@ -15,7 +15,7 @@ This guide explains how to set up the Windows Print Listener service on client m
 Create `PrintListener.ps1`:
 
 ```powershell
-# PrintListener.ps1 - Windows Print Job Monitor
+# PrintListener.ps1 - Windows Print Job Monitor (Any User Mode)
 param(
     [Parameter(Mandatory=$true)]
     [string]$ClientId,
@@ -52,6 +52,30 @@ function Write-Log {
     "$timestamp - $Message" | Add-Content "$logPath\printmonitor.log"
 }
 
+# Function to get system information
+function Get-SystemInfo {
+    $computerName = $env:COMPUTERNAME
+    $userName = $env:USERNAME
+    
+    # Try to determine department from computer name or user
+    $department = "Unknown"
+    
+    # Department detection based on computer name patterns
+    if ($computerName -match "FINANCE|FIN|ACCOUNTING|ACC") { $department = "Finance" }
+    elseif ($computerName -match "MARKETING|MKT|SALES") { $department = "Marketing" }
+    elseif ($computerName -match "HR|HUMAN") { $department = "HR" }
+    elseif ($computerName -match "IT|TECH|DEV") { $department = "IT" }
+    elseif ($computerName -match "OPS|OPERATIONS") { $department = "Operations" }
+    elseif ($computerName -match "ADMIN|MGMT|EXEC") { $department = "Administration" }
+    elseif ($computerName -match "LEGAL|LAW") { $department = "Legal" }
+    
+    return @{
+        SystemName = $computerName
+        UserName = $userName
+        Department = $department
+    }
+}
+
 # Function to send print job data
 function Send-PrintJobData {
     param($JobData)
@@ -64,7 +88,7 @@ function Send-PrintJobData {
         }
         
         $response = Invoke-RestMethod -Uri "$ApiEndpoint/print-jobs" -Method POST -Body ($JobData | ConvertTo-Json) -Headers $headers
-        Write-Log "Successfully sent print job data: $($JobData.fileName)"
+        Write-Log "Successfully sent print job data: $($JobData.fileName) from $($JobData.systemName)"
         return $true
     }
     catch {
@@ -99,20 +123,22 @@ function Get-PrinterInfo {
 }
 
 # Main monitoring loop
-Write-Log "Starting Print Monitor for Client: $ClientId"
+Write-Log "Starting Print Monitor for Client: $ClientId (Any User Mode)"
 
 # Register for print job events
 Register-WmiEvent -Query "SELECT * FROM Win32_PrintJob" -Action {
     $job = $Event.SourceEventArgs.NewEvent
+    $systemInfo = Get-SystemInfo
     
     # Get additional printer information
     $printerInfo = Get-PrinterInfo -PrinterName $job.Name
     
-    # Prepare print job data
+    # Prepare print job data with system information
     $printData = @{
         fileName = $job.Document
-        user = $job.Owner
-        department = $env:USERDOMAIN
+        user = $systemInfo.SystemName  # Use system name as primary identifier
+        systemName = $systemInfo.SystemName
+        department = $systemInfo.Department
         printer = $job.Name
         pages = if ($job.TotalPages) { $job.TotalPages } else { 1 }
         status = if ($job.Status -eq "OK" -or $job.Status -eq $null) { "success" } else { "failed" }
@@ -122,26 +148,27 @@ Register-WmiEvent -Query "SELECT * FROM Win32_PrintJob" -Action {
         colorMode = "blackwhite"  # Default, could be enhanced
         printerModel = $printerInfo.Model
         printerLocation = $printerInfo.Location
+        actualUser = $systemInfo.UserName  # Store actual user for reference
     }
     
     # Send data to API
     $success = Send-PrintJobData -JobData $printData
     
     if ($success) {
-        Write-Log "Print job captured: $($printData.fileName) by $($printData.user)"
+        Write-Log "Print job captured: $($printData.fileName) from system $($printData.systemName) (user: $($printData.actualUser))"
     } else {
-        Write-Log "Failed to send print job: $($printData.fileName)"
+        Write-Log "Failed to send print job: $($printData.fileName) from $($printData.systemName)"
         # Could implement retry logic here
     }
 }
 
 # Keep the script running
-Write-Log "Print Monitor is now active. Press Ctrl+C to stop."
+Write-Log "Print Monitor is now active (Any User Mode). Press Ctrl+C to stop."
 try {
     while ($true) {
         Start-Sleep -Seconds 30
         # Periodic health check
-        Write-Log "Print Monitor is running..."
+        Write-Log "Print Monitor is running... (Monitoring all users on $($env:COMPUTERNAME))"
     }
 }
 finally {
@@ -153,7 +180,7 @@ finally {
 Create `InstallService.ps1`:
 
 ```powershell
-# InstallService.ps1 - Install Print Monitor as Windows Service
+# InstallService.ps1 - Install Print Monitor as Windows Service (Any User Mode)
 param(
     [Parameter(Mandatory=$true)]
     [string]$ClientId,
@@ -167,8 +194,8 @@ param(
 
 # Service configuration
 $serviceName = "PrintMonitorService"
-$serviceDisplayName = "Print Monitor Service"
-$serviceDescription = "Monitors print jobs and sends data to central server"
+$serviceDisplayName = "Print Monitor Service (Any User)"
+$serviceDescription = "Monitors print jobs from any user/system and sends data to central server"
 $scriptPath = "C:\PrintMonitor\PrintListener.ps1"
 $serviceScript = "C:\PrintMonitor\ServiceWrapper.ps1"
 
@@ -222,6 +249,7 @@ Write-Host "Print Monitor Service installed and started successfully!"
 Write-Host "Service Name: $serviceName"
 Write-Host "Client ID: $ClientId"
 Write-Host "API Endpoint: $ApiEndpoint"
+Write-Host "Mode: Any User - captures print jobs from all users on this system"
 ```
 
 ### Step 3: Deployment Script
@@ -229,26 +257,57 @@ Create `Deploy.bat`:
 
 ```batch
 @echo off
-echo Print Monitor Deployment Script
-echo ================================
+echo Print Monitor Deployment Script (Any User Mode)
+echo ================================================
 
 set /p CLIENT_ID="Enter Client ID: "
 set /p API_ENDPOINT="Enter API Endpoint (e.g., https://printmonitor.com/api): "
 set /p API_KEY="Enter API Key: "
 
 echo.
-echo Installing Print Monitor Service...
+echo Installing Print Monitor Service (Any User Mode)...
 echo Client ID: %CLIENT_ID%
 echo API Endpoint: %API_ENDPOINT%
+echo.
+echo This will capture print jobs from ANY user on this system
+echo System name will be used as the primary identifier
 echo.
 
 powershell.exe -ExecutionPolicy Bypass -File "InstallService.ps1" -ClientId "%CLIENT_ID%" -ApiEndpoint "%API_ENDPOINT%" -ApiKey "%API_KEY%"
 
 echo.
 echo Installation complete!
-echo Check Windows Services to verify "Print Monitor Service" is running.
+echo The service will now monitor print jobs from all users on this system.
+echo Check Windows Services to verify "Print Monitor Service (Any User)" is running.
 pause
 ```
+
+## How It Works
+
+### Automatic User Detection
+- **System Name**: Uses computer name (e.g., FINANCE-PC-01, MARKETING-LAPTOP-03)
+- **Department Detection**: Automatically detects department based on system naming patterns
+- **User Context**: Captures actual Windows user but uses system name as primary identifier
+- **No Pre-configuration**: Works immediately without setting up individual users
+
+### Data Captured
+- **System Name**: Computer name that initiated the print
+- **Document Name**: File being printed
+- **Date & Time**: When the print job was submitted
+- **Page Count**: Number of pages printed
+- **Department**: Auto-detected from system name
+- **Printer**: Which printer was used
+- **User**: Windows username (for reference)
+
+### Department Auto-Detection
+The system automatically detects departments based on computer naming patterns:
+- `FINANCE-*`, `FIN-*`, `ACCOUNTING-*` → Finance
+- `MARKETING-*`, `MKT-*`, `SALES-*` → Marketing  
+- `HR-*`, `HUMAN-*` → HR
+- `IT-*`, `TECH-*`, `DEV-*` → IT
+- `OPS-*`, `OPERATIONS-*` → Operations
+- `ADMIN-*`, `MGMT-*`, `EXEC-*` → Administration
+- `LEGAL-*`, `LAW-*` → Legal
 
 ## Configuration for Each Client
 
@@ -309,7 +368,8 @@ $headers = @{
 
 $testData = @{
     fileName = "test.pdf"
-    user = "test.user"
+    user = $env:COMPUTERNAME
+    systemName = $env:COMPUTERNAME
     department = "IT"
     printer = "Test-Printer"
     pages = 1
@@ -335,3 +395,11 @@ Invoke-RestMethod -Uri "https://printmonitor.com/api/print-jobs" -Method POST -B
 - Update API keys quarterly
 - Test connectivity monthly
 - Backup configuration files
+
+## Benefits of Any User Mode
+
+1. **No User Setup Required**: Works immediately without configuring individual users
+2. **System-Based Tracking**: Uses computer names for consistent identification
+3. **Department Auto-Detection**: Automatically categorizes based on naming conventions
+4. **Scalable**: Works with any number of users per system
+5. **Maintenance-Free**: No need to add/remove users as staff changes

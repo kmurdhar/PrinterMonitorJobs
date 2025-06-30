@@ -44,12 +44,34 @@ function App() {
 
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
   const [users, setUsers] = useState<User[]>(initialUsers);
-  const [printJobs, setPrintJobs] = useState<PrintJob[]>(initialPrintJobs);
+  
+  // Load print jobs from localStorage
+  const [printJobs, setPrintJobs] = useState<PrintJob[]>(() => {
+    const saved = localStorage.getItem('printJobs');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((job: any) => ({
+          ...job,
+          timestamp: new Date(job.timestamp)
+        }));
+      } catch (error) {
+        console.error('Error parsing saved print jobs:', error);
+        return initialPrintJobs;
+      }
+    }
+    return initialPrintJobs;
+  });
   
   // Save clients to localStorage whenever clients change
   useEffect(() => {
     localStorage.setItem('mainClients', JSON.stringify(clients));
   }, [clients]);
+
+  // Save print jobs to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('printJobs', JSON.stringify(printJobs));
+  }, [printJobs]);
 
   const isOverallView = selectedClient === 'overall';
   const currentClient = clients.find(c => c.id === selectedClient);
@@ -110,6 +132,20 @@ function App() {
     }
   };
 
+  const handlePrintJobsChange = (updatedJobs: PrintJob[]) => {
+    if (isOverallView) {
+      setPrintJobs(updatedJobs);
+    } else {
+      // Update only the jobs for the current client
+      const otherClientJobs = printJobs.filter(j => j.clientId !== selectedClient);
+      const newJobsWithClient = updatedJobs.map(j => ({
+        ...j,
+        clientId: j.clientId || selectedClient
+      }));
+      setPrintJobs([...otherClientJobs, ...newJobsWithClient]);
+    }
+  };
+
   const handleClientsChange = (updatedClients: Client[]) => {
     setClients(updatedClients);
   };
@@ -142,16 +178,16 @@ function App() {
                 </h3>
                 <p className="text-blue-800 mb-4">
                   {isOverallView 
-                    ? 'Your multi-client printer monitoring system is ready! Data will populate as clients start using their printers.'
-                    : 'This client\'s printer monitoring is ready! To start capturing print jobs:'
+                    ? 'Your multi-client printer monitoring system is ready! Print jobs will be automatically captured when users print from any system.'
+                    : 'This client\'s printer monitoring is ready! Print jobs will be automatically captured from any system in the organization.'
                   }
                 </p>
                 {!isOverallView && (
                   <ol className="list-decimal list-inside text-blue-800 space-y-2">
                     <li>Install the Windows Print Listener on client machines</li>
                     <li>Configure printers in the system</li>
-                    <li>Set up user accounts and departments</li>
-                    <li>Start monitoring print activity</li>
+                    <li>Print jobs will be automatically captured from any system</li>
+                    <li>No need to pre-configure users - system names are captured automatically</li>
                   </ol>
                 )}
                 <p className="text-sm text-blue-600 mt-4">
@@ -171,26 +207,11 @@ function App() {
                 onClientChange={setSelectedClient}
               />
             </div>
-            {clientPrintJobs.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <div className="text-gray-400 mb-4">
-                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {isOverallView ? 'No Print Jobs Across All Clients' : `No Print Jobs for ${currentClientName}`}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Print jobs will appear here once the Windows Print Listener is installed and configured.
-                </p>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  View Setup Guide
-                </button>
-              </div>
-            ) : (
-              <PrintJobsTable jobs={clientPrintJobs} />
-            )}
+            <PrintJobsTable 
+              jobs={clientPrintJobs} 
+              onJobsChange={handlePrintJobsChange}
+              selectedClient={selectedClient}
+            />
           </div>
         );
       case 'printers':

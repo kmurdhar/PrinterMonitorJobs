@@ -1,7 +1,8 @@
 export interface PrintJob {
   id: string;
   fileName: string;
-  user: string;
+  user: string; // This will now be the system name
+  systemName?: string; // Computer/system name that initiated the print
   department: string;
   printer: string;
   pages: number;
