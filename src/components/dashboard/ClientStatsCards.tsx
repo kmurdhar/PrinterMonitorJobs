@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Printer, DollarSign, AlertTriangle, TrendingUp, Users, Building, Globe } from 'lucide-react';
+import { FileText, Printer, DollarSign, AlertTriangle, TrendingUp, Users, Building, Globe, Zap } from 'lucide-react';
 
 interface ClientStats {
   totalJobs: number;
@@ -103,9 +103,21 @@ const ClientStatsCards: React.FC<ClientStatsCardsProps> = ({ stats, isOverallVie
             </p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-600">Last updated</p>
-          <p className="text-sm font-medium text-gray-900">{new Date().toLocaleTimeString()}</p>
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Last updated</p>
+            <p className="text-sm font-medium text-gray-900">{new Date().toLocaleTimeString()}</p>
+          </div>
+          {stats.totalJobs === 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+              <div className="flex items-center space-x-2">
+                <Zap className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Try simulating print jobs to see data
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

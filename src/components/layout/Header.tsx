@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Search, RefreshCw, Download, Building, User, Settings, LogOut, ChevronDown } from 'lucide-react';
 
 interface HeaderProps {
@@ -9,12 +9,85 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications] = useState([
-    { id: 1, message: 'New client onboarded: TechCorp Solutions', time: '5 min ago', type: 'success' },
-    { id: 2, message: 'Printer offline: HP-LaserJet-01', time: '15 min ago', type: 'warning' },
-    { id: 3, message: 'Low toner alert: Canon-Printer-02', time: '1 hour ago', type: 'info' }
-  ]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  
+  // Load notifications from localStorage and update them
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('notifications');
+    if (saved) {
+      try {
+        return JSON.parse(saved).map((notif: any) => ({
+          ...notif,
+          time: notif.time // Keep the relative time as is
+        }));
+      } catch (error) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Save notifications to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  // Listen for new print jobs to create notifications
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'printJobs') {
+        const newJobs = JSON.parse(e.newValue || '[]');
+        const oldJobs = JSON.parse(e.oldValue || '[]');
+        
+        // Check if new jobs were added
+        if (newJobs.length > oldJobs.length) {
+          const latestJob = newJobs[0]; // Assuming newest job is first
+          const newNotification = {
+            id: Date.now(),
+            message: `New print job: ${latestJob.fileName} from ${latestJob.systemName || latestJob.user}`,
+            time: 'Just now',
+            type: latestJob.status === 'success' ? 'success' : 'warning'
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Keep only 10 notifications
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Add notification when print jobs are simulated
+  useEffect(() => {
+    const checkForNewJobs = () => {
+      const printJobs = JSON.parse(localStorage.getItem('printJobs') || '[]');
+      const lastNotificationTime = localStorage.getItem('lastNotificationTime');
+      const currentTime = Date.now();
+      
+      if (printJobs.length > 0) {
+        const latestJob = printJobs[0];
+        const jobTime = new Date(latestJob.timestamp).getTime();
+        
+        // If there's a new job within the last 5 seconds, create a notification
+        if (!lastNotificationTime || jobTime > parseInt(lastNotificationTime)) {
+          const newNotification = {
+            id: currentTime,
+            message: `Print job captured: ${latestJob.fileName} from ${latestJob.systemName || latestJob.user}`,
+            time: 'Just now',
+            type: latestJob.status === 'success' ? 'success' : 'warning'
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
+          localStorage.setItem('lastNotificationTime', jobTime.toString());
+        }
+      }
+    };
+
+    // Check for new jobs every 2 seconds
+    const interval = setInterval(checkForNewJobs, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getPageTitle = (tab: string) => {
     const titles: { [key: string]: string } = {
@@ -25,7 +98,9 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
       onboarding: 'Client Onboarding',
       analytics: 'Analytics & Reports',
       monitoring: 'Real-time Monitoring',
-      settings: 'System Settings'
+      settings: 'System Settings',
+      pricing: 'Pricing Management',
+      profile: 'Profile & Settings'
     };
     return titles[tab] || 'PrintMonitor';
   };
@@ -33,18 +108,15 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // TODO: Implement global search functionality
       alert(`Searching for: "${searchQuery}"`);
     }
   };
 
   const handleRefresh = () => {
-    // TODO: Implement refresh functionality
     window.location.reload();
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality based on current tab
     const exportData = {
       dashboard: 'dashboard_stats',
       jobs: 'print_jobs',
@@ -59,9 +131,17 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      // TODO: Implement logout functionality
       alert('Logout functionality will be implemented');
     }
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+    setIsNotificationsOpen(false);
+  };
+
+  const markAsRead = (notificationId: number) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
   };
 
   return (
@@ -116,38 +196,68 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
               <Bell className="h-5 w-5" />
               {notifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {notifications.length}
+                  {notifications.length > 9 ? '9+' : notifications.length}
                 </span>
               )}
             </button>
 
             {isNotificationsOpen && (
               <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="p-4 border-b border-gray-200">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={clearNotifications}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Clear all
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-64 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
-                      <div className="flex items-start space-x-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${
-                          notification.type === 'success' ? 'bg-green-500' :
-                          notification.type === 'warning' ? 'bg-yellow-500' :
-                          'bg-blue-500'
-                        }`}></div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No notifications yet</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Print job notifications will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 group">
+                        <div className="flex items-start space-x-3">
+                          <div className={`w-2 h-2 rounded-full mt-2 ${
+                            notification.type === 'success' ? 'bg-green-500' :
+                            notification.type === 'warning' ? 'bg-yellow-500' :
+                            'bg-blue-500'
+                          }`}></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                          </div>
+                          <button
+                            onClick={() => markAsRead(notification.id)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
+                            title="Mark as read"
+                          >
+                            ×
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-                <div className="p-3 border-t border-gray-200">
-                  <button className="text-sm text-blue-600 hover:text-blue-800">
-                    View all notifications
-                  </button>
-                </div>
+                {notifications.length > 0 && (
+                  <div className="p-3 border-t border-gray-200">
+                    <button 
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Close notifications
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

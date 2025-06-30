@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building } from 'lucide-react';
+import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap } from 'lucide-react';
 import { PrintJob } from '../../types';
 
 interface PrintJobsTableProps {
@@ -87,6 +87,20 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
         printer: 'Canon-PIXMA-02',
         pages: 2,
         department: 'Administration'
+      },
+      {
+        fileName: 'IT_Security_Policy.pdf',
+        systemName: 'IT-DESKTOP-07',
+        printer: 'Brother-HL-L2350DW-03',
+        pages: 12,
+        department: 'IT'
+      },
+      {
+        fileName: 'Sales_Presentation.pptx',
+        systemName: 'SALES-LAPTOP-04',
+        printer: 'Canon-PIXMA-02',
+        pages: 25,
+        department: 'Sales'
       }
     ];
 
@@ -129,9 +143,9 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setIsSimulateModalOpen(true)}
-                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm"
               >
-                <Plus className="h-4 w-4" />
+                <Zap className="h-4 w-4" />
                 <span>Simulate Print Job</span>
               </button>
               <select
@@ -166,10 +180,12 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
             <p className="text-gray-600 mb-6">
               Print jobs will automatically appear here when users print from any system in the organization.
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            
+            {/* How it Works Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left max-w-2xl mx-auto">
               <div className="flex items-start space-x-3">
-                <Monitor className="h-6 w-6 text-blue-600 mt-1" />
-                <div className="text-left">
+                <Monitor className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+                <div>
                   <h4 className="text-sm font-medium text-blue-900 mb-2">How Print Capture Works:</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• Windows Print Listener monitors all print jobs</li>
@@ -180,13 +196,20 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setIsSimulateModalOpen(true)}
-              className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Simulate Print Job</span>
-            </button>
+
+            {/* Simulate Button */}
+            <div className="space-y-4">
+              <button
+                onClick={() => setIsSimulateModalOpen(true)}
+                className="inline-flex items-center space-x-2 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-lg shadow-lg"
+              >
+                <Zap className="h-5 w-5" />
+                <span>Try Simulating a Print Job</span>
+              </button>
+              <p className="text-sm text-gray-500">
+                Click above to see how print jobs are captured and displayed
+              </p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -283,11 +306,11 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
       {/* Simulate Print Job Modal */}
       {isSimulateModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
             <div className="p-6">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Printer className="h-8 w-8 text-green-600" />
+                  <Zap className="h-8 w-8 text-green-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Simulate Print Job</h3>
                 <p className="text-gray-600">
@@ -298,12 +321,25 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <h4 className="text-sm font-medium text-blue-900 mb-2">What will be captured:</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• System name (e.g., FINANCE-PC-01)</li>
-                  <li>• Document name and details</li>
-                  <li>• Print timestamp</li>
-                  <li>• Page count and cost</li>
-                  <li>• Department (auto-detected)</li>
+                  <li>• <strong>System name</strong> (e.g., FINANCE-PC-01, MARKETING-LAPTOP-03)</li>
+                  <li>• <strong>Document name</strong> and file details</li>
+                  <li>• <strong>Print timestamp</strong> (current date/time)</li>
+                  <li>• <strong>Page count</strong> and calculated cost</li>
+                  <li>• <strong>Department</strong> (auto-detected from system name)</li>
+                  <li>• <strong>Printer used</strong> and job status</li>
                 </ul>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-yellow-800">
+                      <strong>Demo Mode:</strong> This simulates the Windows Print Listener capturing real print jobs. 
+                      In production, jobs are captured automatically when users print.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex space-x-3">
@@ -317,7 +353,7 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                   onClick={simulatePrintJob}
                   className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                 >
-                  Simulate Print
+                  Simulate Print Job
                 </button>
               </div>
             </div>
