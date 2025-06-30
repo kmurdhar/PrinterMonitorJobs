@@ -17,7 +17,13 @@ import {
   Shield,
   Download,
   Copy,
-  Check
+  Check,
+  Monitor,
+  Settings,
+  Zap,
+  AlertTriangle,
+  FileText,
+  Network
 } from 'lucide-react';
 
 interface ClientOnboardingWizardProps {
@@ -102,7 +108,7 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({
         subdomain: prev.subdomain || generateSubdomain()
       }));
     }
-    setCurrentStep(prev => Math.min(prev + 1, 4));
+    setCurrentStep(prev => Math.min(prev + 1, 5));
   };
 
   const handlePrevious = () => {
@@ -124,32 +130,93 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({
     const setupGuide = `
 # Client Setup Guide - ${clientData.companyName}
 
-## Client Information
+## 🏢 Client Information
 - Company: ${clientData.companyName}
 - Client ID: ${clientData.clientId}
 - Subdomain: ${clientData.subdomain}.printmonitor.com
 - Subscription: ${clientData.subscriptionPlan}
 
-## API Configuration
+## 🔑 API Configuration
 - API Key: ${clientData.apiKey}
 - API Endpoint: https://printmonitor.com/api
 - Client Access URL: https://${clientData.subdomain}.printmonitor.com
 
-## Windows Listener Installation
-1. Download the PrintMonitor installer
-2. Run as Administrator
-3. Use the following configuration:
-   - Client ID: ${clientData.clientId}
-   - API Key: ${clientData.apiKey}
-   - API Endpoint: https://printmonitor.com/api
+## 🖥️ Windows Listener Installation
 
-## Next Steps
-1. Install Windows Print Listener on client machines
-2. Configure ${clientData.printerCount} printers in the system
-3. Set up user accounts for ${clientData.estimatedUsers} users
-4. Test print job monitoring
+### Step 1: Download Installer
+Download PrintMonitor_Installer.exe from the provided link
 
-For support, contact: support@printmonitor.com
+### Step 2: Install on Each Computer
+Run the installer AS ADMINISTRATOR on every computer that will print:
+
+1. Right-click PrintMonitor_Installer.exe
+2. Select "Run as Administrator"
+3. Enter the following when prompted:
+
+   Client ID: ${clientData.clientId}
+   API Key: ${clientData.apiKey}
+   API Endpoint: https://printmonitor.com/api
+
+### Step 3: Verify Installation
+1. Open Windows Services (services.msc)
+2. Look for "PrintMonitor Service"
+3. Ensure it's running and set to "Automatic"
+
+## 🖨️ How Printer Mapping Works
+
+### Automatic Discovery:
+- Printers are automatically discovered when users print
+- No manual configuration needed
+- System detects printer name, location, and department
+
+### First Print Job Process:
+1. User prints document normally
+2. Print Listener captures the job
+3. Printer automatically added to system
+4. Print job appears in dashboard
+
+### System Naming Convention:
+For best department detection, name computers like:
+- FINANCE-PC-01 → Finance Department
+- MARKETING-LAPTOP-03 → Marketing Department  
+- HR-WORKSTATION-02 → HR Department
+- IT-DESKTOP-07 → IT Department
+
+## 📊 What Gets Captured:
+- System name (computer name)
+- Document name and size
+- Printer used
+- Page count
+- Date and time
+- Department (auto-detected)
+- User name (Windows user)
+
+## 🎯 Testing the Setup:
+
+### Test Print Job:
+1. Print any document from any application
+2. Check dashboard at: https://${clientData.subdomain}.printmonitor.com
+3. Print job should appear within 30 seconds
+
+### Troubleshooting:
+- Ensure Print Listener service is running
+- Check firewall allows outbound HTTPS (port 443)
+- Verify API credentials are correct
+
+## 📞 Support Information:
+- Email: support@printmonitor.com
+- Phone: +1-800-PRINT-MON
+- Portal: https://support.printmonitor.com
+
+## 🚀 Next Steps:
+1. Install Print Listener on all computers
+2. Test with sample print jobs
+3. Configure ${clientData.printerCount} printers as needed
+4. Set up user accounts for ${clientData.estimatedUsers} users
+5. Monitor dashboard for real-time data
+
+Installation Date: ${new Date().toLocaleDateString()}
+Setup by: PrintMonitor Admin Team
     `;
 
     const blob = new Blob([setupGuide], { type: 'text/plain' });
@@ -161,11 +228,39 @@ For support, contact: support@printmonitor.com
     URL.revokeObjectURL(url);
   };
 
+  const downloadInstallerConfig = () => {
+    const configFile = `
+# PrintMonitor Configuration File
+# Company: ${clientData.companyName}
+
+CLIENT_ID=${clientData.clientId}
+API_KEY=${clientData.apiKey}
+API_ENDPOINT=https://printmonitor.com/api
+CLIENT_NAME=${clientData.companyName}
+SUBDOMAIN=${clientData.subdomain}
+
+# Installation Instructions:
+# 1. Save this file as 'printmonitor.config'
+# 2. Place in same folder as installer
+# 3. Run installer as Administrator
+# 4. Installer will auto-load these settings
+    `;
+
+    const blob = new Blob([configFile], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${clientData.companyName.replace(/[^a-z0-9]/gi, '_')}_installer_config.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const steps = [
     { number: 1, title: 'Company Info', description: 'Basic company details' },
     { number: 2, title: 'Subscription', description: 'Plan and requirements' },
     { number: 3, title: 'Technical Setup', description: 'API keys and configuration' },
-    { number: 4, title: 'Complete', description: 'Review and finish' }
+    { number: 4, title: 'Installation Guide', description: 'How clients set up the system' },
+    { number: 5, title: 'Complete', description: 'Review and finish' }
   ];
 
   const renderStepIndicator = () => (
@@ -570,6 +665,130 @@ For support, contact: support@printmonitor.com
     <div className="space-y-6">
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Monitor className="h-8 w-8 text-green-600" />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">Client Installation Guide</h3>
+        <p className="text-gray-600">How the client will set up and use the system</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Installation Overview */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Settings className="h-6 w-6 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Installation Overview</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Download className="h-6 w-6 text-blue-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">1. Download Installer</h5>
+              <p className="text-sm text-gray-600">Client downloads PrintMonitor installer</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Monitor className="h-6 w-6 text-green-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">2. Install on Computers</h5>
+              <p className="text-sm text-gray-600">Install on each computer that will print</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Zap className="h-6 w-6 text-purple-600" />
+              </div>
+              <h5 className="font-medium text-gray-900 mb-2">3. Start Monitoring</h5>
+              <p className="text-sm text-gray-600">Print jobs automatically captured</p>
+            </div>
+          </div>
+        </div>
+
+        {/* How Printer Mapping Works */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Network className="h-6 w-6 text-green-600" />
+            <h4 className="text-lg font-semibold text-gray-900">How Printer Mapping Works</h4>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-4">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-green-600 font-bold text-sm">1</span>
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Automatic Discovery</h5>
+                <p className="text-sm text-gray-600">When a user prints, the system automatically detects and adds the printer to the dashboard. No manual configuration needed!</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-blue-600 font-bold text-sm">2</span>
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Smart Department Detection</h5>
+                <p className="text-sm text-gray-600">System detects department from computer names (e.g., FINANCE-PC-01 → Finance Department)</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-4">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-purple-600 font-bold text-sm">3</span>
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Real-time Monitoring</h5>
+                <p className="text-sm text-gray-600">All print jobs appear in the dashboard within 30 seconds of printing</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* What Gets Captured */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <FileText className="h-6 w-6 text-gray-600" />
+            <h4 className="text-lg font-semibold text-gray-900">What Gets Captured</h4>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              'System name (computer)',
+              'Document name & size',
+              'Printer used',
+              'Page count',
+              'Date & time',
+              'Department (auto-detected)',
+              'User name',
+              'Print status'
+            ].map((item, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm text-gray-700">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Important Notes */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-medium text-yellow-900">Important Notes for Client</h4>
+              <ul className="text-sm text-yellow-800 mt-2 space-y-1">
+                <li>• Install Print Listener on EVERY computer that will print</li>
+                <li>• Run installer as Administrator</li>
+                <li>• Ensure firewall allows outbound HTTPS connections</li>
+                <li>• End users don't need to change how they print</li>
+                <li>• Printers are discovered automatically when first used</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep5 = () => (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
         <h3 className="text-2xl font-bold text-gray-900 mb-2">Setup Complete!</h3>
@@ -613,15 +832,15 @@ For support, contact: support@printmonitor.com
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h4>
         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-          <li>Download the setup guide with all configuration details</li>
-          <li>Install the Windows Print Listener on client machines</li>
-          <li>Configure {clientData.printerCount} printers in the system</li>
-          <li>Set up user accounts for the client's team</li>
-          <li>Test print job monitoring and verify data flow</li>
+          <li>Download the complete setup guide with all configuration details</li>
+          <li>Send the installer and credentials to the client's IT team</li>
+          <li>Guide them through installing Print Listener on all computers</li>
+          <li>Test with sample print jobs to verify data capture</li>
+          <li>Monitor the dashboard for incoming print job data</li>
         </ol>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center space-x-4">
         <button
           onClick={downloadSetupGuide}
           className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -629,13 +848,20 @@ For support, contact: support@printmonitor.com
           <Download className="h-5 w-5" />
           <span>Download Setup Guide</span>
         </button>
+        <button
+          onClick={downloadInstallerConfig}
+          className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          <Settings className="h-5 w-5" />
+          <span>Download Config File</span>
+        </button>
       </div>
     </div>
   );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Client Onboarding</h2>
@@ -657,6 +883,7 @@ For support, contact: support@printmonitor.com
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
             {currentStep === 4 && renderStep4()}
+            {currentStep === 5 && renderStep5()}
           </div>
 
           <div className="flex justify-between pt-8 border-t border-gray-200">
@@ -669,7 +896,7 @@ For support, contact: support@printmonitor.com
               <span>Previous</span>
             </button>
 
-            {currentStep < 4 ? (
+            {currentStep < 5 ? (
               <button
                 onClick={handleNext}
                 disabled={
