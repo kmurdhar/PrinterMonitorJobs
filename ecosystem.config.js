@@ -1,8 +1,7 @@
 module.exports = {
   apps: [{
-    name: 'printmonitor-frontend',
-    script: 'npm',
-    args: 'run preview',
+    name: 'printmonitor-backend',
+    script: 'server/server.js',
     cwd: '/var/www/printmonitor',
     instances: 1,
     exec_mode: 'fork',

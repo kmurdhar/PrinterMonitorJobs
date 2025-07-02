@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-PROJECT_NAME="printmonitor"
+PROJECT_NAME="printmonitor-backend"
 PROJECT_DIR="/var/www/printmonitor"
 BACKUP_DIR="/var/backups/printmonitor"
 DATE=$(date +%Y%m%d_%H%M%S)
@@ -90,10 +90,21 @@ else
     warning "Not a Git repository, using copied files"
 fi
 
-# Install dependencies
-log "📦 Installing dependencies..."
+# Install frontend dependencies
+log "📦 Installing frontend dependencies..."
 npm ci --production=false
-success "Dependencies installed"
+success "Frontend dependencies installed"
+
+# Install backend dependencies
+log "📦 Installing backend dependencies..."
+if [ -d "server" ]; then
+    cd server
+    npm ci --production=false
+    cd ..
+    success "Backend dependencies installed"
+else
+    error "Server directory not found"
+fi
 
 # Run tests (if available)
 if npm run test --silent 2>/dev/null; then
