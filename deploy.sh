@@ -12,6 +12,7 @@ PROJECT_DIR="/var/www/printmonitor"
 BACKUP_DIR="/var/backups/printmonitor"
 DATE=$(date +%Y%m%d_%H%M%S)
 ENVIRONMENT=${1:-production}
+CURRENT_DIR=$(pwd)
 
 # Colors for output
 RED='\033[0;31m'
@@ -63,11 +64,19 @@ else
     warning "No existing deployment found to backup"
 fi
 
-# Navigate to project directory
+# Create project directory if it doesn't exist
 if [ ! -d "$PROJECT_DIR" ]; then
-    error "Project directory $PROJECT_DIR does not exist"
+    log "📁 Creating project directory..."
+    sudo mkdir -p $PROJECT_DIR
+    sudo chown $USER:$USER $PROJECT_DIR
 fi
 
+# Copy project files to deployment directory
+log "📋 Copying project files to deployment directory..."
+rsync -av --exclude=node_modules --exclude=dist --exclude=.git $CURRENT_DIR/ $PROJECT_DIR/
+success "Project files copied to $PROJECT_DIR"
+
+# Navigate to project directory
 cd $PROJECT_DIR
 log "📁 Changed to project directory: $PROJECT_DIR"
 
@@ -78,7 +87,7 @@ if [ -d ".git" ]; then
     git reset --hard origin/main
     success "Git pull completed"
 else
-    warning "Not a Git repository, skipping Git pull"
+    warning "Not a Git repository, using copied files"
 fi
 
 # Install dependencies
