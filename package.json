@@ -12,7 +12,11 @@
     "start": "vite preview",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist node_modules/.vite",
-    "fresh-install": "rm -rf node_modules package-lock.json && npm install"
+    "fresh-install": "rm -rf node_modules package-lock.json && npm install",
+    "server": "cd server && npm install && npm start",
+    "server:dev": "cd server && npm install && npm run dev",
+    "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\"",
+    "build:full": "npm run build && cd server && npm install"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
@@ -26,6 +30,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "concurrently": "^8.2.2",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
