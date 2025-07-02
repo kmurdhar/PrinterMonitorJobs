@@ -18,10 +18,13 @@ import {
 } from './data/mockData';
 import { generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User, PrintJob, Client } from './types';
+import { apiService } from './services/api';
+import { useWebSocket } from './hooks/useWebSocket';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState('overall');
+  const [isServerConnected, setIsServerConnected] = useState(false);
   
   // Check URL parameters for client selection
   useEffect(() => {
@@ -65,7 +68,7 @@ function App() {
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
   const [users, setUsers] = useState<User[]>(initialUsers);
   
-  // Load print jobs from localStorage
+  // Load print jobs from localStorage and API
   const [printJobs, setPrintJobs] = useState<PrintJob[]>(() => {
     const saved = localStorage.getItem('printJobs');
     if (saved) {
@@ -82,6 +85,80 @@ function App() {
     }
     return initialPrintJobs;
   });
+
+  // WebSocket connection for real-time updates
+  const { isConnected: wsConnected, lastMessage } = useWebSocket(
+    `ws://localhost:3000`,
+    (message) => {
+      console.log('WebSocket message received:', message);
+      
+      if (message.type === 'new_print_job') {
+        setPrintJobs(prev => [message.job, ...prev]);
+        
+        // Update printer if provided
+        if (message.printer) {
+          setPrinters(prev => {
+            const existingIndex = prev.findIndex(p => p.id === message.printer.id);
+            if (existingIndex >= 0) {
+              const updated = [...prev];
+              updated[existingIndex] = message.printer;
+              return updated;
+            } else {
+              return [message.printer, ...prev];
+            }
+          });
+        }
+      } else if (message.type === 'printer_discovered') {
+        setPrinters(prev => {
+          const exists = prev.find(p => p.id === message.printer.id);
+          if (!exists) {
+            return [message.printer, ...prev];
+          }
+          return prev;
+        });
+      }
+    }
+  );
+
+  // Check server connection and load data
+  useEffect(() => {
+    const checkServerAndLoadData = async () => {
+      try {
+        // Check server health
+        const health = await apiService.healthCheck();
+        console.log('Server health check:', health);
+        setIsServerConnected(true);
+
+        // Load print jobs from server
+        const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
+        if (serverJobs && serverJobs.length > 0) {
+          const formattedJobs = serverJobs.map((job: any) => ({
+            ...job,
+            timestamp: new Date(job.timestamp)
+          }));
+          setPrintJobs(formattedJobs);
+        }
+
+        // Load printers from server
+        const serverPrinters = await apiService.getPrinters(selectedClient === 'overall' ? undefined : selectedClient);
+        if (serverPrinters && serverPrinters.length > 0) {
+          setPrinters(serverPrinters);
+        }
+
+        // Load clients from server
+        const serverClients = await apiService.getClients();
+        if (serverClients && serverClients.length > 0) {
+          setClients(serverClients);
+        }
+
+      } catch (error) {
+        console.error('Failed to connect to server:', error);
+        setIsServerConnected(false);
+      }
+    };
+
+    checkServerAndLoadData();
+  }, [selectedClient]);
   
   // Save clients to localStorage whenever clients change
   useEffect(() => {
@@ -168,6 +245,19 @@ function App() {
 
   const handleClientsChange = (updatedClients: Client[]) => {
     setClients(updatedClients);
+    // Also save to server
+    updatedClients.forEach(client => {
+      apiService.saveClient(client).catch(console.error);
+    });
+  };
+
+  // Test function to simulate print jobs
+  const handleSimulatePrintJob = async () => {
+    try {
+      await apiService.simulatePrintJob(selectedClient === 'overall' ? undefined : selectedClient);
+    } catch (error) {
+      console.error('Failed to simulate print job:', error);
+    }
   };
 
   const renderContent = () => {
@@ -181,6 +271,42 @@ function App() {
                 selectedClient={selectedClient}
                 onClientChange={setSelectedClient}
               />
+            </div>
+            
+            {/* Server Status */}
+            <div className={`mb-6 p-4 rounded-lg border ${
+              isServerConnected 
+                ? 'bg-green-50 border-green-200' 
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  isServerConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                }`}></div>
+                <div>
+                  <p className={`font-medium ${
+                    isServerConnected ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {isServerConnected ? 'Server Connected' : 'Server Disconnected'}
+                  </p>
+                  <p className={`text-sm ${
+                    isServerConnected ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {isServerConnected 
+                      ? `API server running at localhost:3000 • WebSocket: ${wsConnected ? 'Connected' : 'Disconnected'}`
+                      : 'Unable to connect to API server at localhost:3000'
+                    }
+                  </p>
+                </div>
+                {isServerConnected && (
+                  <button
+                    onClick={handleSimulatePrintJob}
+                    className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    Test Print Job
+                  </button>
+                )}
+              </div>
             </div>
             
             <ClientStatsCards 
@@ -198,7 +324,7 @@ function App() {
                 </h3>
                 <p className="text-blue-800 mb-4">
                   {isOverallView 
-                    ? `Your PrintMonitor server is running at ${window.location.origin} and ready to accept client connections!`
+                    ? `Your PrintMonitor server is running and ready to accept client connections!`
                     : `This client's printer monitoring is ready! Print jobs will be automatically captured from any system in the organization.`
                   }
                 </p>
@@ -212,10 +338,13 @@ function App() {
                 )}
                 <div className="mt-4 p-3 bg-white border border-blue-300 rounded-lg">
                   <p className="text-sm text-blue-900 font-medium">
-                    🌐 Server URL: <span className="font-mono">{window.location.origin}</span>
+                    🌐 Frontend: <span className="font-mono">http://localhost:5173</span>
+                  </p>
+                  <p className="text-sm text-blue-900 font-medium">
+                    🔗 API Server: <span className="font-mono">http://localhost:3000</span>
                   </p>
                   <p className="text-sm text-blue-700 mt-1">
-                    Share this URL with clients for dashboard access
+                    Share the frontend URL with clients for dashboard access
                   </p>
                 </div>
               </div>
@@ -355,24 +484,40 @@ function App() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">System Health</h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Server Status</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Online</span>
+                    <span className="text-sm text-gray-600">Frontend Server</span>
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Online (5173)</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Database Connection</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Connected</span>
+                    <span className="text-sm text-gray-600">API Server</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      isServerConnected 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {isServerConnected ? 'Online (3000)' : 'Offline'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">API Endpoint</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Active</span>
+                    <span className="text-sm text-gray-600">WebSocket</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      wsConnected 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {wsConnected ? 'Connected' : 'Disconnected'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Active Clients</span>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">{clients.length} Connected</span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{clients.length} Connected</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Server URL</span>
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-mono">{window.location.origin}</span>
+                    <span className="text-sm text-gray-600">Frontend URL</span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-mono">localhost:5173</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">API URL</span>
+                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-mono">localhost:3000</span>
                   </div>
                 </div>
               </div>
