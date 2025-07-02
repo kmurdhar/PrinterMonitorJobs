@@ -13,7 +13,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ 
+  server,
+  clientTracking: true,
+  perMessageDeflate: false
+});
 
 // Middleware
 app.use(cors());
@@ -26,26 +30,117 @@ let printers = [];
 let clients = [];
 
 // WebSocket connections for real-time updates
-const wsConnections = new Set();
+const wsConnections = new Map();
 
-wss.on('connection', (ws) => {
-  console.log('WebSocket client connected');
-  wsConnections.add(ws);
+wss.on('connection', (ws, req) => {
+  const clientId = uuidv4();
+  const clientIP = req.socket.remoteAddress;
   
-  ws.on('close', () => {
-    wsConnections.delete(ws);
-    console.log('WebSocket client disconnected');
+  console.log(`WebSocket client connected: ${clientId} from ${clientIP}`);
+  wsConnections.set(clientId, {
+    ws,
+    connectedAt: new Date(),
+    lastPing: new Date(),
+    clientIP
+  });
+  
+  // Send welcome message
+  ws.send(JSON.stringify({
+    type: 'connection_established',
+    clientId,
+    timestamp: new Date().toISOString(),
+    message: 'Connected to PrintMonitor server'
+  }));
+
+  // Handle ping/pong for connection health
+  ws.on('ping', () => {
+    const client = wsConnections.get(clientId);
+    if (client) {
+      client.lastPing = new Date();
+      ws.pong();
+    }
+  });
+
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      console.log(`WebSocket message from ${clientId}:`, message);
+      
+      // Handle different message types
+      if (message.type === 'ping') {
+        ws.send(JSON.stringify({
+          type: 'pong',
+          timestamp: new Date().toISOString()
+        }));
+      }
+    } catch (error) {
+      console.error(`Error parsing WebSocket message from ${clientId}:`, error);
+    }
+  });
+  
+  ws.on('close', (code, reason) => {
+    console.log(`WebSocket client disconnected: ${clientId} (code: ${code}, reason: ${reason})`);
+    wsConnections.delete(clientId);
+  });
+
+  ws.on('error', (error) => {
+    console.error(`WebSocket error for client ${clientId}:`, error);
+    wsConnections.delete(clientId);
   });
 });
 
 // Broadcast to all connected WebSocket clients
 function broadcast(data) {
-  wsConnections.forEach(ws => {
-    if (ws.readyState === ws.OPEN) {
-      ws.send(JSON.stringify(data));
+  const message = JSON.stringify(data);
+  let sentCount = 0;
+  let errorCount = 0;
+
+  wsConnections.forEach((client, clientId) => {
+    if (client.ws.readyState === client.ws.OPEN) {
+      try {
+        client.ws.send(message);
+        sentCount++;
+      } catch (error) {
+        console.error(`Error sending to WebSocket client ${clientId}:`, error);
+        wsConnections.delete(clientId);
+        errorCount++;
+      }
+    } else {
+      // Clean up dead connections
+      wsConnections.delete(clientId);
     }
   });
+
+  if (sentCount > 0) {
+    console.log(`📡 Broadcast sent to ${sentCount} WebSocket clients${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
+  }
 }
+
+// Periodic cleanup of dead connections
+setInterval(() => {
+  const now = new Date();
+  const staleConnections = [];
+
+  wsConnections.forEach((client, clientId) => {
+    // Remove connections that haven't pinged in 60 seconds
+    if (now - client.lastPing > 60000) {
+      staleConnections.push(clientId);
+    }
+  });
+
+  staleConnections.forEach(clientId => {
+    console.log(`Removing stale WebSocket connection: ${clientId}`);
+    const client = wsConnections.get(clientId);
+    if (client && client.ws.readyState === client.ws.OPEN) {
+      client.ws.close(1000, 'Stale connection cleanup');
+    }
+    wsConnections.delete(clientId);
+  });
+
+  if (staleConnections.length > 0) {
+    console.log(`🧹 Cleaned up ${staleConnections.length} stale WebSocket connections`);
+  }
+}, 30000); // Check every 30 seconds
 
 // Helper function to detect department from system name
 function detectDepartment(systemName) {
@@ -87,7 +182,8 @@ function autoDiscoverPrinter(printerName, clientId) {
     // Broadcast printer discovery
     broadcast({
       type: 'printer_discovered',
-      printer: newPrinter
+      printer: newPrinter,
+      timestamp: new Date().toISOString()
     });
     
     console.log(`Auto-discovered printer: ${printerName} for client: ${clientId}`);
@@ -111,7 +207,27 @@ app.get('/api/health', (req, res) => {
     server: 'PrintMonitor API v1.0',
     clients: clients.length,
     printers: printers.length,
-    jobs: printJobs.length
+    jobs: printJobs.length,
+    websocket: {
+      connections: wsConnections.size,
+      server: 'active'
+    }
+  });
+});
+
+// WebSocket status endpoint
+app.get('/api/websocket/status', (req, res) => {
+  const connections = Array.from(wsConnections.entries()).map(([id, client]) => ({
+    id,
+    connectedAt: client.connectedAt,
+    lastPing: client.lastPing,
+    clientIP: client.clientIP,
+    readyState: client.ws.readyState
+  }));
+
+  res.json({
+    totalConnections: wsConnections.size,
+    connections
   });
 });
 
@@ -182,7 +298,8 @@ app.post('/api/print-jobs', (req, res) => {
     broadcast({
       type: 'new_print_job',
       job: printJob,
-      printer: printer
+      printer: printer,
+      timestamp: new Date().toISOString()
     });
 
     console.log(`Print job captured: ${fileName} from ${systemName} (Client: ${clientId})`);
@@ -347,7 +464,8 @@ app.post('/api/test/simulate-print', (req, res) => {
   broadcast({
     type: 'new_print_job',
     job: printJob,
-    printer: printer
+    printer: printer,
+    timestamp: new Date().toISOString()
   });
 
   console.log(`Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);
@@ -393,9 +511,11 @@ if (distExists) {
           printers: '/api/printers',
           clients: '/api/clients',
           stats: '/api/stats',
-          simulate: '/api/test/simulate-print'
+          simulate: '/api/test/simulate-print',
+          websocketStatus: '/api/websocket/status'
         },
-        frontend: 'http://localhost:5173 (development server)'
+        frontend: 'http://localhost:5173 (development server)',
+        websocket: `ws://localhost:${process.env.PORT || 3000}`
       });
     }
   });
@@ -415,4 +535,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Frontend Dev: http://localhost:5173`);
     console.log(`💡 To serve frontend from this server, run: npm run build`);
   }
+  
+  console.log(`📡 WebSocket server ready for connections`);
 });
