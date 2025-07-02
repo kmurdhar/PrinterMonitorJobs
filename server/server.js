@@ -6,6 +6,7 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -311,38 +312,107 @@ app.post('/api/test/simulate-print', (req, res) => {
   
   const randomJob = sampleJobs[Math.floor(Math.random() * sampleJobs.length)];
   
-  // Simulate the print job submission
-  const simulatedRequest = {
-    body: {
-      clientId,
-      fileName: randomJob.fileName,
-      systemName: randomJob.systemName,
-      printerName: randomJob.printerName,
-      pages: randomJob.pages,
-      fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
-      paperSize: 'A4',
-      colorMode: randomJob.colorMode
-    }
+  // Auto-discover printer
+  const printer = autoDiscoverPrinter(randomJob.printerName, clientId);
+
+  // Detect department from system name
+  const department = detectDepartment(randomJob.systemName);
+
+  // Calculate cost
+  const costPerPage = randomJob.colorMode === 'color' ? 0.15 : 0.05;
+  const cost = randomJob.pages * costPerPage;
+
+  // Create print job
+  const printJob = {
+    id: `job-${uuidv4()}`,
+    fileName: randomJob.fileName,
+    user: randomJob.systemName,
+    systemName: randomJob.systemName,
+    department,
+    printer: randomJob.printerName,
+    pages: randomJob.pages,
+    status: Math.random() > 0.1 ? 'success' : 'failed',
+    timestamp: new Date(),
+    cost,
+    fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
+    paperSize: 'A4',
+    colorMode: randomJob.colorMode,
+    clientId
   };
+
+  // Store the print job
+  printJobs.push(printJob);
+
+  // Broadcast real-time update
+  broadcast({
+    type: 'new_print_job',
+    job: printJob,
+    printer: printer
+  });
+
+  console.log(`Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);
+
+  res.json({
+    success: true,
+    jobId: printJob.id,
+    message: 'Print job simulated successfully',
+    cost: cost.toFixed(2),
+    job: printJob
+  });
+});
+
+// Check if dist directory exists before serving static files
+const distPath = path.join(__dirname, '../dist');
+const distExists = fs.existsSync(distPath);
+
+if (distExists) {
+  console.log('📁 Serving static files from dist directory');
+  // Serve static files from the dist directory
+  app.use(express.static(distPath));
   
-  // Process the simulated job
-  app._router.handle(simulatedRequest, res, () => {});
-});
-
-// Serve static files from the dist directory
-app.use(express.static(path.join(__dirname, '../dist')));
-
-// Catch-all handler for SPA routing
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+  // Catch-all handler for SPA routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.log('⚠️  Dist directory not found - serving API only');
+  console.log('💡 Run "npm run build" to create the dist directory');
+  
+  // Fallback route when dist doesn't exist
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      res.status(404).json({ error: 'API endpoint not found' });
+    } else {
+      res.status(200).json({
+        message: 'PrintMonitor API Server',
+        status: 'running',
+        note: 'Frontend not built yet. Run "npm run build" to build the frontend.',
+        api: {
+          health: '/api/health',
+          printJobs: '/api/print-jobs',
+          printers: '/api/printers',
+          clients: '/api/clients',
+          stats: '/api/stats',
+          simulate: '/api/test/simulate-print'
+        },
+        frontend: 'http://localhost:5173 (development server)'
+      });
+    }
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🖨️  PrintMonitor Server running on port ${PORT}`);
-  console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API: http://localhost:${PORT}/api`);
   console.log(`📡 WebSocket: ws://localhost:${PORT}`);
   console.log(`🌐 Network: http://192.168.29.84:${PORT}`);
+  
+  if (distExists) {
+    console.log(`📊 Dashboard: http://localhost:${PORT}`);
+  } else {
+    console.log(`📊 Frontend Dev: http://localhost:5173`);
+    console.log(`💡 To serve frontend from this server, run: npm run build`);
+  }
 });
