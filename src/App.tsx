@@ -251,15 +251,6 @@ function App() {
     });
   };
 
-  // Test function to simulate print jobs
-  const handleSimulatePrintJob = async () => {
-    try {
-      await apiService.simulatePrintJob(selectedClient === 'overall' ? undefined : selectedClient);
-    } catch (error) {
-      console.error('Failed to simulate print job:', error);
-    }
-  };
-
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -298,14 +289,6 @@ function App() {
                     }
                   </p>
                 </div>
-                {isServerConnected && (
-                  <button
-                    onClick={handleSimulatePrintJob}
-                    className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    Test Print Job
-                  </button>
-                )}
               </div>
             </div>
             

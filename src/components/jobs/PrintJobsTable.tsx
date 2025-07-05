@@ -141,13 +141,6 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setIsSimulateModalOpen(true)}
-                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm"
-              >
-                <Zap className="h-4 w-4" />
-                <span>Simulate Print Job</span>
-              </button>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -199,16 +192,12 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
 
             {/* Simulate Button */}
             <div className="space-y-4">
-              <button
-                onClick={() => setIsSimulateModalOpen(true)}
-                className="inline-flex items-center space-x-2 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-lg shadow-lg"
-              >
-                <Zap className="h-5 w-5" />
-                <span>Try Simulating a Print Job</span>
-              </button>
-              <p className="text-sm text-gray-500">
-                Click above to see how print jobs are captured and displayed
-              </p>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-900 mb-2">Ready for Real Print Jobs</p>
+                <p className="text-sm text-gray-500">
+                  Install the Print Listener on client computers to start capturing real print jobs
+                </p>
+              </div>
             </div>
           </div>
         ) : (
