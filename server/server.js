@@ -328,7 +328,7 @@ app.post('/api/print-jobs', (req, res) => {
 // Get print jobs for a client
 app.get('/api/print-jobs', (req, res) => {
   const { clientId, limit = 1000 } = req.query;
-
+  
   console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
   console.log(`📋 Total jobs in memory: ${printJobs.length}`);
   
@@ -344,7 +344,12 @@ app.get('/api/print-jobs', (req, res) => {
   
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
-    jobs = printJobs.filter(job => job.clientId === clientId || job.clientId === 'test-client');
+    // Match jobs for this client or test jobs
+    jobs = printJobs.filter(job => 
+      job.clientId === clientId || 
+      job.clientId === 'test-client' || 
+      job.clientId === 'default-client'
+    );
     console.log(`📋 Filtered jobs for client ${clientId}: found ${jobs.length} jobs`);
   } else {
     console.log(`📋 No client filter applied, returning all ${jobs.length} jobs`);
@@ -435,6 +440,8 @@ app.get('/api/stats', (req, res) => {
 app.post('/api/test/simulate-print', (req, res) => {
   const { clientId = 'test-client' } = req.body;
   
+  console.log(`🧪 Simulating print job for client: ${clientId}`);
+  
   const sampleJobs = [
     {
       fileName: 'Financial_Report_Q4.pdf',
@@ -461,8 +468,11 @@ app.post('/api/test/simulate-print', (req, res) => {
   
   const randomJob = sampleJobs[Math.floor(Math.random() * sampleJobs.length)];
   
+  // Make sure we use the client ID from the request
+  const jobClientId = clientId || 'test-client';
+  
   // Auto-discover printer
-  const printer = autoDiscoverPrinter(randomJob.printerName, clientId);
+  const printer = autoDiscoverPrinter(randomJob.printerName, jobClientId);
 
   // Detect department from system name
   const department = detectDepartment(randomJob.systemName);
@@ -486,7 +496,7 @@ app.post('/api/test/simulate-print', (req, res) => {
     fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
     paperSize: 'A4',
     colorMode: randomJob.colorMode,
-    clientId
+    clientId: jobClientId
   };
 
   // Store the print job
@@ -497,7 +507,8 @@ app.post('/api/test/simulate-print', (req, res) => {
     type: 'new_print_job',
     job: printJob,
     printer: printer,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    clientId: jobClientId
   });
 
   console.log(`🎭 Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);

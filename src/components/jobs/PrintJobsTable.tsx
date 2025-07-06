@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap, AlertTriangle, RefreshCw } from 'lucide-react';
+import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap, RefreshCw } from 'lucide-react';
 import { PrintJob } from '../../types';
 import { apiService } from '../../services/api';
 
@@ -195,38 +195,38 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
           {/* Troubleshooting Section */}
           {jobs.length === 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-left">
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-medium text-yellow-900 mb-2">Not seeing print jobs? Check:</h4>
-                <ul className="text-sm text-yellow-800 space-y-1">
-                  <li>• <strong>Server URL:</strong> Client machine can reach {window.location.origin.replace(':5173', ':3000')}</li>
-                  <li>• <strong>Print Listener:</strong> PowerShell script is running as Administrator</li>
-                  <li>• <strong>Network:</strong> No firewall blocking port 3000</li>
-                  <li>• <strong>Client ID:</strong> Correct client ID in the URL</li>
-                  <li>• <strong>Test Print:</strong> Try printing a document from the client machine</li>
-                </ul>
-                <div className="mt-3 p-2 bg-white border border-yellow-300 rounded">
-                  <p className="text-sm text-yellow-900">
-                    <strong>Current Client:</strong> <span className="font-mono">{selectedClient}</span>
-                  </p>
-                  <p className="text-sm text-yellow-900">
-                    <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin.replace(':5173', ':3000')}/api</span>
-                  </p>
-                  <p className="text-sm text-yellow-900">
-                    <strong>Debug URL:</strong> <a 
-                      href={`${window.location.origin.replace(':5173', ':3000')}/api/debug/client/${selectedClient}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Check server data
-                    </a>
-                  </p>
+              <div className="flex items-start space-x-3">
+                <Clock className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-medium text-yellow-900 mb-2">Not seeing print jobs? Check:</h4>
+                  <ul className="text-sm text-yellow-800 space-y-1">
+                    <li>• <strong>Server URL:</strong> Client machine can reach {window.location.origin.replace(':5173', ':3000')}</li>
+                    <li>• <strong>Print Listener:</strong> PowerShell script is running as Administrator</li>
+                    <li>• <strong>Network:</strong> No firewall blocking port 3000</li>
+                    <li>• <strong>Client ID:</strong> Correct client ID in the URL</li>
+                    <li>• <strong>Test Print:</strong> Try printing a document from the client machine</li>
+                  </ul>
+                  <div className="mt-3 p-2 bg-white border border-yellow-300 rounded">
+                    <p className="text-sm text-yellow-900">
+                      <strong>Current Client:</strong> <span className="font-mono">{selectedClient}</span>
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin.replace(':5173', ':3000')}/api</span>
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      <strong>Debug URL:</strong> <a 
+                        href={`${window.location.origin.replace(':5173', ':3000')}/api/debug/client/${selectedClient}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Check server data
+                      </a>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
 
         <div className="p-6 border-b border-gray-200">
