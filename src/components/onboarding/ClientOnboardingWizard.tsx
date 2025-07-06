@@ -578,6 +578,11 @@ echo "Dashboard: ${credentials.dashboardUrl}"`
   const handleNext = () => {
     if (currentStep === 2) {
       // Generate technical configuration
+      if (!formData.companyName || !formData.contactName || !formData.contactEmail) {
+        alert('Please fill in all required fields before proceeding');
+        return;
+      }
+      
       const credentials = generateTechnicalConfig();
       generateInstallationFiles(credentials);
     }
@@ -591,6 +596,12 @@ echo "Dashboard: ${credentials.dashboardUrl}"`
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const canProceedToNext = () => {
+    if (currentStep === 1) return formData.companyName && formData.contactName && formData.contactEmail;
+    if (currentStep === 2) return formData.platforms.length > 0;
+    return true;
   };
 
   const handleComplete = () => {
@@ -1123,8 +1134,7 @@ echo "Dashboard: ${credentials.dashboardUrl}"`
               <button
                 onClick={handleNext}
                 disabled={
-                  (currentStep === 1 && (!formData.companyName || !formData.contactName || !formData.contactEmail)) ||
-                  (currentStep === 2 && formData.platforms.length === 0)
+                  !canProceedToNext()
                 }
                 className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
