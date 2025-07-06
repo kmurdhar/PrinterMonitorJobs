@@ -5,6 +5,21 @@ interface WebSocketMessage {
   [key: string]: any;
 }
 
+const getWebSocketUrl = () => {
+  // Get the API base URL from environment or use current origin
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  
+  try {
+    const url = new URL(apiBaseUrl);
+    // Convert HTTP protocol to WebSocket protocol
+    const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${url.host}`;
+  } catch (error) {
+    // Fallback to current origin with WebSocket protocol
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+};
 export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage) => void) => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -26,15 +41,18 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       return;
     }
 
+    // Use dynamic WebSocket URL instead of the passed url parameter
+    const wsUrl = getWebSocketUrl();
+
     try {
-      console.log(`Attempting WebSocket connection to ${url} (attempt ${reconnectAttemptsRef.current + 1})`);
+      console.log(`Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttemptsRef.current + 1})`);
       
       // Close existing connection if any
       if (ws.current) {
         ws.current.close();
       }
 
-      ws.current = new WebSocket(url);
+      ws.current = new WebSocket(wsUrl);
       
       ws.current.onopen = () => {
         console.log('WebSocket connected successfully');

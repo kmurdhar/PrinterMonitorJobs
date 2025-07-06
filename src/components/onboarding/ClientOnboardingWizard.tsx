@@ -15,7 +15,8 @@ import {
   Globe,
   Key,
   FileText,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import PlatformSelector from './PlatformSelector';
 
