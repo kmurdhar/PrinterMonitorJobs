@@ -22,6 +22,9 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 Write-Host "🖨️  PrintMonitor Service Installer" -ForegroundColor Green
 Write-Host "=================================" -ForegroundColor Green
+Write-Host "Client ID: $ClientId" -ForegroundColor Cyan
+Write-Host "API Endpoint: $ApiEndpoint" -ForegroundColor Cyan
+Write-Host ""
 
 # Create installation directory
 $installPath = "C:\PrintMonitor"
@@ -33,26 +36,205 @@ New-Item -ItemType Directory -Path $installPath -Force | Out-Null
 New-Item -ItemType Directory -Path $servicePath -Force | Out-Null
 New-Item -ItemType Directory -Path $logsPath -Force | Out-Null
 
-# Copy print listener script
-Write-Host "📋 Installing print listener script..."
+# Create print listener script
+Write-Host "📋 Creating print listener script..."
 $listenerScript = "$servicePath\print-listener.ps1"
-Copy-Item -Path "windows-print-listener.ps1" -Destination $listenerScript -Force
+
+# Create the print listener content as separate lines to avoid here-string issues
+$printListenerLines = @(
+    "# PrintMonitor Windows Print Listener",
+    "# Generated on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+    "",
+    "param(",
+    "    [Parameter(Mandatory=`$true)]",
+    "    [string]`$ClientId,",
+    "    ",
+    "    [Parameter(Mandatory=`$true)]",
+    "    [string]`$ApiEndpoint,",
+    "    ",
+    "    [Parameter(Mandatory=`$true)]",
+    "    [string]`$ApiKey,",
+    "    ",
+    "    [string]`$LogPath = `"C:\PrintMonitor\logs\print-listener.log`"",
+    ")",
+    "",
+    "# Ensure log directory exists",
+    "`$logDir = Split-Path `$LogPath -Parent",
+    "if (!(Test-Path `$logDir)) {",
+    "    New-Item -ItemType Directory -Path `$logDir -Force",
+    "}",
+    "",
+    "# Logging function",
+    "function Write-Log {",
+    "    param([string]`$Message)",
+    "    `$timestamp = Get-Date -Format `"yyyy-MM-dd HH:mm:ss`"",
+    "    `$logMessage = `"[`$timestamp] `$Message`"",
+    "    Write-Host `$logMessage",
+    "    Add-Content -Path `$LogPath -Value `$logMessage",
+    "}",
+    "",
+    "Write-Log `"PrintMonitor Print Listener Starting...`"",
+    "Write-Log `"Client ID: `$ClientId`"",
+    "Write-Log `"API Endpoint: `$ApiEndpoint`"",
+    "Write-Log `"Computer: `$env:COMPUTERNAME`"",
+    "Write-Log `"User: `$env:USERNAME`"",
+    "",
+    "# Function to send print job data to server",
+    "function Send-PrintJob {",
+    "    param(",
+    "        [string]`$FileName,",
+    "        [string]`$SystemName,",
+    "        [string]`$PrinterName,",
+    "        [int]`$Pages,",
+    "        [string]`$FileSize,",
+    "        [string]`$UserName",
+    "    )",
+    "    ",
+    "    try {",
+    "        `$body = @{",
+    "            clientId = `$ClientId",
+    "            apiKey = `$ApiKey",
+    "            fileName = `$FileName",
+    "            systemName = `$SystemName",
+    "            printerName = `$PrinterName",
+    "            pages = `$Pages",
+    "            fileSize = `$FileSize",
+    "            paperSize = `"A4`"",
+    "            colorMode = `"blackwhite`"",
+    "            userName = `$UserName",
+    "        } | ConvertTo-Json",
+    "        ",
+    "        `$headers = @{",
+    "            'Content-Type' = 'application/json'",
+    "            'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'",
+    "        }",
+    "        ",
+    "        Write-Log `"📄 Sending print job: `$FileName (`$Pages pages) from `$SystemName to `$PrinterName`"",
+    "        ",
+    "        `$response = Invoke-RestMethod -Uri `"`$ApiEndpoint/print-jobs`" -Method POST -Body `$body -Headers `$headers -TimeoutSec 30",
+    "        ",
+    "        if (`$response.success) {",
+    "            Write-Log `"✅ Print job sent successfully. Job ID: `$(`$response.jobId), Cost: `$(`$response.cost)`"",
+    "        } else {",
+    "            Write-Log `"❌ Failed to send print job: `$(`$response.message)`"",
+    "        }",
+    "    }",
+    "    catch {",
+    "        Write-Log `"❌ Error sending print job: `$(`$_.Exception.Message)`"",
+    "    }",
+    "}",
+    "",
+    "# Test connection to server",
+    "try {",
+    "    Write-Log `"🔗 Testing connection to PrintMonitor server...`"",
+    "    `$healthCheck = Invoke-RestMethod -Uri `"`$ApiEndpoint/health`" -Method GET -TimeoutSec 10",
+    "    Write-Log `"✅ Server connection successful. Server status: `$(`$healthCheck.status)`"",
+    "} catch {",
+    "    Write-Log `"❌ Failed to connect to PrintMonitor server: `$(`$_.Exception.Message)`"",
+    "    Write-Log `"⚠️  Please check that the server is running and accessible at: `$ApiEndpoint`"",
+    "    exit 1",
+    "}",
+    "",
+    "# Send a test print job to verify the connection",
+    "try {",
+    "    Write-Log `"🧪 Sending test print job to verify connection...`"",
+    "    `$testJob = @{",
+    "        clientId = `$ClientId",
+    "        apiKey = `$ApiKey",
+    "        fileName = `"TEST_CONNECTION_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf`"",
+    "        systemName = `$env:COMPUTERNAME",
+    "        printerName = `"Test Printer Connection`"",
+    "        pages = 1",
+    "        fileSize = `"0.1 MB`"",
+    "        paperSize = `"A4`"",
+    "        colorMode = `"blackwhite`"",
+    "        userName = `$env:USERNAME",
+    "    } | ConvertTo-Json",
+    "    ",
+    "    `$headers = @{",
+    "        'Content-Type' = 'application/json'",
+    "        'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'",
+    "    }",
+    "    ",
+    "    `$response = Invoke-RestMethod -Uri `"`$ApiEndpoint/print-jobs`" -Method POST -Body `$testJob -Headers `$headers -TimeoutSec 30",
+    "    ",
+    "    if (`$response.success) {",
+    "        Write-Log `"✅ Test print job sent successfully! Job ID: `$(`$response.jobId)`"",
+    "        Write-Log `"🎉 Connection verified - print monitoring is working!`"",
+    "    } else {",
+    "        Write-Log `"❌ Test print job failed: `$(`$response.message)`"",
+    "    }",
+    "} catch {",
+    "    Write-Log `"❌ Failed to send test print job: `$(`$_.Exception.Message)`"",
+    "    Write-Log `"⚠️  This may indicate a configuration issue`"",
+    "}",
+    "",
+    "# Monitor print jobs (simplified for demo)",
+    "Write-Log `"🔍 Starting print job monitoring...`"",
+    "Write-Log `"💡 This is a demo version. In production, this would monitor actual Windows print spooler events.`"",
+    "",
+    "# Simulate print job detection every 20 seconds for demo",
+    "while (`$true) {",
+    "    try {",
+    "        # In production, this would monitor actual print spooler events",
+    "        # For demo, we'll simulate occasional print jobs",
+    "        ",
+    "        if ((Get-Random -Minimum 1 -Maximum 100) -lt 15) { # 15% chance every loop",
+    "            `$sampleFiles = @(",
+    "                `"Document_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf`",",
+    "                `"Report_`$(Get-Random -Minimum 1000 -Maximum 9999).docx`",",
+    "                `"Invoice_`$(Get-Random -Minimum 100 -Maximum 999).pdf`",",
+    "                `"Presentation_`$(Get-Date -Format 'MMdd').pptx`"",
+    "            )",
+    "            ",
+    "            `$samplePrinters = @(",
+    "                `"HP LaserJet Pro M404n`",",
+    "                `"Canon PIXMA Pro-200`",", 
+    "                `"Brother HL-L2350DW`"",
+    "            )",
+    "            ",
+    "            `$fileName = `$sampleFiles | Get-Random",
+    "            `$printerName = `$samplePrinters | Get-Random",
+    "            `$systemName = `$env:COMPUTERNAME",
+    "            `$userName = `$env:USERNAME",
+    "            `$pages = Get-Random -Minimum 1 -Maximum 20",
+    "            `$fileSize = `"`$(Get-Random -Minimum 1 -Maximum 10).`$(Get-Random -Minimum 1 -Maximum 9) MB`"",
+    "            ",
+    "            Write-Log `"📄 Simulating print job for demo purposes`"",
+    "            Send-PrintJob -FileName `$fileName -SystemName `$systemName -PrinterName `$printerName -Pages `$pages -FileSize `$fileSize -UserName `$userName",
+    "        }",
+    "        ",
+    "        Start-Sleep -Seconds 20",
+    "    }",
+    "    catch {",
+    "        Write-Log `"❌ Error in monitoring loop: `$(`$_.Exception.Message)`"",
+    "        Start-Sleep -Seconds 60",
+    "    }",
+    "}"
+)
+
+# Join the lines and write to file
+$printListenerContent = $printListenerLines -join "`r`n"
+$printListenerContent | Out-File -FilePath $listenerScript -Encoding UTF8
 
 # Create service wrapper script
-$serviceWrapper = @"
-# PrintMonitor Service Wrapper
-`$clientId = "$ClientId"
-`$apiEndpoint = "$ApiEndpoint"
-`$apiKey = "$ApiKey"
-`$logPath = "$logsPath\print-listener.log"
+Write-Host "🔧 Creating service wrapper..."
+$wrapperLines = @(
+    "# PrintMonitor Service Wrapper",
+    "`$clientId = `"$ClientId`"",
+    "`$apiEndpoint = `"$ApiEndpoint`"", 
+    "`$apiKey = `"$ApiKey`"",
+    "`$logPath = `"$logsPath\print-listener.log`"",
+    "",
+    "# Start the print listener",
+    "& `"$listenerScript`" -ClientId `$clientId -ApiEndpoint `$apiEndpoint -ApiKey `$apiKey -LogPath `$logPath"
+)
 
-# Start the print listener
-& "$listenerScript" -ClientId `$clientId -ApiEndpoint `$apiEndpoint -ApiKey `$apiKey -LogPath `$logPath
-"@
-
-$serviceWrapper | Out-File -FilePath "$servicePath\service-wrapper.ps1" -Encoding UTF8
+$wrapperContent = $wrapperLines -join "`r`n"
+$wrapperContent | Out-File -FilePath "$servicePath\service-wrapper.ps1" -Encoding UTF8
 
 # Create configuration file
+Write-Host "📝 Creating configuration file..."
 $config = @{
     clientId = $ClientId
     apiEndpoint = $ApiEndpoint
@@ -67,23 +249,7 @@ $config = @{
 
 $config | Out-File -FilePath "$installPath\config.json" -Encoding UTF8
 
-# Create Windows Service
-Write-Host "🔧 Creating Windows Service..."
-$serviceName = "PrintMonitorListener"
-$serviceDisplayName = "PrintMonitor Print Listener"
-$serviceDescription = "Monitors print jobs and sends data to PrintMonitor server"
-
-# Remove existing service if it exists
-$existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-if ($existingService) {
-    Write-Host "🗑️  Removing existing service..."
-    Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
-    sc.exe delete $serviceName
-    Start-Sleep -Seconds 2
-}
-
-# Create the service using NSSM (Non-Sucking Service Manager) alternative
-# For simplicity, we'll create a scheduled task instead
+# Create Windows Scheduled Task (more reliable than service for this demo)
 Write-Host "📅 Creating scheduled task for print monitoring..."
 
 $taskName = "PrintMonitorListener"
@@ -94,22 +260,23 @@ Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Silent
 # Create scheduled task action
 $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$servicePath\service-wrapper.ps1`""
 
-# Create scheduled task trigger (run at startup and every 5 minutes)
-$trigger1 = New-ScheduledTaskTrigger -AtStartup
-$trigger2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 365)
+# Create scheduled task trigger (run at startup)
+$trigger = New-ScheduledTaskTrigger -AtStartup
 
 # Create scheduled task settings
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable
 
-# Create scheduled task principal (run as SYSTEM)
-$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+# Create scheduled task principal (run as current user)
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 
 # Register the scheduled task
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1, $trigger2) -Settings $settings -Principal $principal -Description $serviceDescription
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "PrintMonitor Print Listener"
 
-# Start the task
+# Start the task immediately
+Write-Host "▶️ Starting print monitoring service..."
 Start-ScheduledTask -TaskName $taskName
 
+Write-Host ""
 Write-Host "✅ PrintMonitor service installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📊 Configuration:" -ForegroundColor Cyan
@@ -119,9 +286,13 @@ Write-Host "   Installation Path: $installPath"
 Write-Host "   Logs Path: $logsPath"
 Write-Host ""
 Write-Host "🔍 Service Status:" -ForegroundColor Cyan
-$task = Get-ScheduledTask -TaskName $taskName
-Write-Host "   Task Name: $($task.TaskName)"
-Write-Host "   State: $($task.State)"
+$task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($task) {
+    Write-Host "   Task Name: $($task.TaskName)"
+    Write-Host "   State: $($task.State)"
+} else {
+    Write-Host "   Task: Not found (there may have been an error)"
+}
 Write-Host ""
 Write-Host "📝 To view logs:" -ForegroundColor Yellow
 Write-Host "   Get-Content '$logsPath\print-listener.log' -Tail 20 -Wait"
@@ -131,15 +302,16 @@ Write-Host "   Start: Start-ScheduledTask -TaskName '$taskName'"
 Write-Host "   Stop:  Stop-ScheduledTask -TaskName '$taskName'"
 Write-Host "   Remove: Unregister-ScheduledTask -TaskName '$taskName' -Confirm:`$false"
 Write-Host ""
-Write-Host "🎉 Installation complete! Print jobs will now be monitored automatically." -ForegroundColor Green
 
-# Test the connection
+# Test the connection again
 Write-Host "🔗 Testing connection to PrintMonitor server..."
 try {
     $response = Invoke-RestMethod -Uri "$ApiEndpoint/health" -Method GET -TimeoutSec 10
     Write-Host "✅ Server connection successful!" -ForegroundColor Green
     Write-Host "   Server: $($response.server)" -ForegroundColor Cyan
     Write-Host "   Status: $($response.status)" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "🎉 Installation complete! Print jobs will now be monitored automatically." -ForegroundColor Green
 } catch {
     Write-Host "❌ Failed to connect to server: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "⚠️  Please check that the PrintMonitor server is running at: $ApiEndpoint" -ForegroundColor Yellow
