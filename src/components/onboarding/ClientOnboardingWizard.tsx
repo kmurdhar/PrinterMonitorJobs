@@ -73,9 +73,7 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({ isOpen,
       .replace(/^-|-$/g, '');
     
     const clientId = `${companySlug}-${Math.random().toString(36).substr(2, 8)}`;
-    const apiKey = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    const apiKey = 'pk_' + Math.random().toString(36).substr(2, 32);
     
     const serverUrl = window.location.origin;
     const dashboardUrl = `${serverUrl}/?client=${clientId}`;
