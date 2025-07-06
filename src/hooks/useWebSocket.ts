@@ -22,6 +22,7 @@ const getWebSocketUrl = () => {
     return `${protocol}//${host}:3000`;
   }
 };
+
 export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage) => void) => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,7 +48,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
     const wsUrl = getWebSocketUrl();
 
     try {
-      console.log(`Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttemptsRef.current + 1})`);
+      console.log(`🔌 Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttemptsRef.current + 1})`);
       
       // Close existing connection if any
       if (ws.current) {
@@ -57,7 +58,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       ws.current = new WebSocket(wsUrl);
       
       ws.current.onopen = () => {
-        console.log('WebSocket connected successfully');
+        console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0; // Reset attempts on successful connection
         clearReconnectTimeout();
@@ -66,6 +67,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       ws.current.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          console.log('📨 WebSocket message received:', message);
           setLastMessage(message);
           onMessage?.(message);
         } catch (error) {
@@ -74,7 +76,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       };
       
       ws.current.onclose = (event) => {
-        console.log(`WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
+        console.log(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
         setIsConnected(false);
         
         // Only attempt to reconnect if it wasn't a manual close (code 1000)
@@ -82,23 +84,23 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000); // Exponential backoff, max 30s
           
-          console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           
           clearReconnectTimeout();
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, delay);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          console.log('Max reconnection attempts reached. Stopping reconnection attempts.');
+          console.log('❌ Max reconnection attempts reached. Stopping reconnection attempts.');
         }
       };
       
       ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('❌ WebSocket error:', error);
         setIsConnected(false);
       };
     } catch (error) {
-      console.error('Error creating WebSocket:', error);
+      console.error('❌ Error creating WebSocket:', error);
       reconnectAttemptsRef.current++;
       
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -109,7 +111,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
         }, delay);
       }
     }
-  }, [url, onMessage, clearReconnectTimeout]);
+  }, [onMessage, clearReconnectTimeout]);
 
   useEffect(() => {
     connect();

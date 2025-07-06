@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap } from 'lucide-react';
 import { PrintJob } from '../../types';
+import { RefreshCw } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface PrintJobsTableProps {
   jobs: PrintJob[];
@@ -12,6 +14,7 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('timestamp');
   const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const filteredJobs = jobs.filter(job => 
     filterStatus === 'all' || job.status === filterStatus
@@ -129,6 +132,43 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
     setIsSimulateModalOpen(false);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 Manual refresh triggered for client:', selectedClient);
+      
+      // Force reload from server
+      const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
+      if (serverJobs && serverJobs.length > 0) {
+        const formattedJobs = serverJobs.map((job: any) => ({
+          ...job,
+          timestamp: new Date(job.timestamp)
+        }));
+        onJobsChange?.(formattedJobs);
+        console.log(`✅ Refreshed: Found ${formattedJobs.length} jobs`);
+      } else {
+        console.log('📄 No jobs found after refresh');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing jobs:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleTestPrint = async () => {
+    try {
+      console.log('🧪 Triggering test print for client:', selectedClient);
+      const result = await apiService.triggerTestPrint(selectedClient === 'overall' ? 'test-client' : selectedClient);
+      console.log('✅ Test print triggered:', result);
+      
+      // Refresh after test print
+      setTimeout(handleRefresh, 1000);
+    } catch (error) {
+      console.error('❌ Error triggering test print:', error);
+    }
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -173,11 +213,11 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
           <div className="flex items-center justify-between">
             {jobs.length === 0 && (
             <button
-              onClick={() => setIsSimulateModalOpen(true)}
+              onClick={handleTestPrint}
               className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
               <Zap className="h-4 w-4" />
-              <span>Simulate Print Job (Test)</span>
+              <span>Test Print Job</span>
             </button>
             )}
             <div>
@@ -192,11 +232,19 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                 <p className="text-lg font-bold text-gray-900">{jobs.length}</p>
               </div>
               <button
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
-                <RefreshCw className="h-4 w-4" />
-                <span>Refresh</span>
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
+              <button
+                onClick={handleTestPrint}
+                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Zap className="h-4 w-4" />
+                <span>Test Print</span>
               </button>
             </div>
             <div className="flex items-center space-x-4">

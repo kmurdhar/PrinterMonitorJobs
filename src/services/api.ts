@@ -21,7 +21,6 @@ class ApiService {
     }
     
     console.log('🔗 API Service initialized with base URL:', this.baseUrl);
-    this.baseUrl = baseUrl;
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -36,15 +35,18 @@ class ApiService {
     };
 
     try {
+      console.log(`🌐 API Request: ${config.method || 'GET'} ${url}`);
       const response = await fetch(url, config);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log(`✅ API Response: ${endpoint}`, data);
+      return data;
     } catch (error) {
-      console.error(`API request failed: ${endpoint}`, error);
+      console.error(`❌ API request failed: ${endpoint}`, error);
       throw error;
     }
   }
@@ -103,6 +105,18 @@ class ApiService {
     return this.request('/test/simulate-print', {
       method: 'POST',
       body: JSON.stringify({ clientId }),
+    });
+  }
+
+  // Debug endpoint
+  async getClientDebugInfo(clientId: string) {
+    return this.request(`/debug/client/${clientId}`);
+  }
+
+  // Manual test print job
+  async triggerTestPrint(clientId: string) {
+    return this.request(`/debug/test-print/${clientId}`, {
+      method: 'POST',
     });
   }
 }
