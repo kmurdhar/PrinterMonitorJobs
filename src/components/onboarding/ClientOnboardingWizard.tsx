@@ -559,11 +559,11 @@ echo "Dashboard: ${credentials.dashboardUrl}"`
             clientId: credentials.clientId,
             companyName: formData.companyName,
             apiEndpoint: credentials.apiEndpoint,
-            dashboardUrl: credentials.dashboardUrl,
             platforms: formData.platforms,
             printerCount: formData.printerCount,
             estimatedUsers: formData.estimatedUsers,
             subscriptionPlan: formData.subscriptionPlan,
+            dashboardUrl: credentials.dashboardUrl,
             createdAt: new Date().toISOString()
           }, null, 2)
         }
