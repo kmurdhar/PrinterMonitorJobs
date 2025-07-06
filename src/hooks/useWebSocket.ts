@@ -6,18 +6,20 @@ interface WebSocketMessage {
 }
 
 const getWebSocketUrl = () => {
-  // Get the API base URL from environment or use current origin
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  // Always use port 3000 for WebSocket connection
+  const currentOrigin = window.location.origin;
+  const wsOrigin = currentOrigin.replace(':5173', ':3000');
   
   try {
-    const url = new URL(apiBaseUrl);
+    const url = new URL(wsOrigin);
     // Convert HTTP protocol to WebSocket protocol
     const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${wsProtocol}//${url.host}`;
   } catch (error) {
-    // Fallback to current origin with WebSocket protocol
+    // Fallback
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}`;
+    const host = window.location.hostname;
+    return `${protocol}//${host}:3000`;
   }
 };
 export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage) => void) => {

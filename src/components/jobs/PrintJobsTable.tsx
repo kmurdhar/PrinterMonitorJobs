@@ -133,13 +133,14 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
     <>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           {/* Troubleshooting Section */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-left max-w-2xl mx-auto">
+          {jobs.length === 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-left">
             <div className="flex items-start space-x-3">
               <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
               <div>
                 <h4 className="text-sm font-medium text-yellow-900 mb-2">Not seeing print jobs? Check:</h4>
                 <ul className="text-sm text-yellow-800 space-y-1">
-                  <li>• <strong>Server URL:</strong> Client machine can reach {window.location.origin}</li>
+                  <li>• <strong>Server URL:</strong> Client machine can reach {window.location.origin.replace(':5173', ':3000')}</li>
                   <li>• <strong>Print Listener:</strong> PowerShell script is running as Administrator</li>
                   <li>• <strong>Network:</strong> No firewall blocking port 3000</li>
                   <li>• <strong>Client ID:</strong> Correct client ID in the URL</li>
@@ -152,13 +153,25 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                   <p className="text-sm text-yellow-900">
                     <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin.replace(':5173', ':3000')}/api</span>
                   </p>
+                  <p className="text-sm text-yellow-900">
+                    <strong>Debug URL:</strong> <a 
+                      href={`${window.location.origin.replace(':5173', ':3000')}/api/debug/client/${selectedClient}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Check server data
+                    </a>
+                  </p>
                 </div>
               </div>
             </div>
           </div>
+          )}
 
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
+            {jobs.length === 0 && (
             <button
               onClick={() => setIsSimulateModalOpen(true)}
               className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -166,11 +179,25 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
               <Zap className="h-4 w-4" />
               <span>Simulate Print Job (Test)</span>
             </button>
+            )}
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Print Job History</h2>
               <p className="text-sm text-gray-600 mt-1">
                 Automatically captured print jobs from any system in the organization
               </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Total Jobs</p>
+                <p className="text-lg font-bold text-gray-900">{jobs.length}</p>
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Refresh</span>
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               <select

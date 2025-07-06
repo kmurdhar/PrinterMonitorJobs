@@ -326,16 +326,21 @@ app.post('/api/print-jobs', (req, res) => {
 app.get('/api/print-jobs', (req, res) => {
   const { clientId, limit = 100 } = req.query;
   
+  console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
+  
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
     jobs = printJobs.filter(job => job.clientId === clientId);
   }
+  
+  console.log(`📋 Found ${jobs.length} jobs for client ${clientId || 'overall'}`);
   
   // Sort by timestamp (newest first) and limit results
   jobs = jobs
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, parseInt(limit));
   
+  console.log(`📋 Returning ${jobs.length} jobs after sorting and limiting`);
   res.json(jobs);
 });
 

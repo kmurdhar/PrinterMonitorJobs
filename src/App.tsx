@@ -124,6 +124,8 @@ function App() {
   useEffect(() => {
     const checkServerAndLoadData = async () => {
       try {
+        console.log('🔄 Checking server and loading data for client:', selectedClient);
+        
         // Check server health
         const health = await apiService.healthCheck();
         console.log('✅ Server health check:', health);
@@ -132,20 +134,23 @@ function App() {
         // Load print jobs from server
         const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
         if (serverJobs && serverJobs.length > 0) {
-          console.log(`📄 Loaded ${serverJobs.length} print jobs from server`);
+          console.log(`📄 Loaded ${serverJobs.length} print jobs from server for client:`, selectedClient);
           const formattedJobs = serverJobs.map((job: any) => ({
             ...job,
             timestamp: new Date(job.timestamp)
           }));
           setPrintJobs(formattedJobs);
+          
+          // Also save to localStorage for persistence
+          localStorage.setItem('printJobs', JSON.stringify(formattedJobs));
         } else {
-          console.log('📄 No print jobs found on server');
+          console.log('📄 No print jobs found on server for client:', selectedClient);
         }
 
         // Load printers from server
         const serverPrinters = await apiService.getPrinters(selectedClient === 'overall' ? undefined : selectedClient);
         if (serverPrinters && serverPrinters.length > 0) {
-          console.log(`🖨️ Loaded ${serverPrinters.length} printers from server`);
+          console.log(`🖨️ Loaded ${serverPrinters.length} printers from server for client:`, selectedClient);
           setPrinters(serverPrinters);
         }
 
@@ -165,7 +170,7 @@ function App() {
     checkServerAndLoadData();
     
     // Set up periodic refresh to check for new print jobs
-    const interval = setInterval(checkServerAndLoadData, 10000); // Check every 10 seconds
+    const interval = setInterval(checkServerAndLoadData, 5000); // Check every 5 seconds
     
     return () => clearInterval(interval);
   }, [selectedClient]);

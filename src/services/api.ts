@@ -3,7 +3,24 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = API_BASE_URL) {
+  constructor(baseUrl: string = '') {
+    // Determine the correct API base URL
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else if (import.meta.env.VITE_API_BASE_URL) {
+      this.baseUrl = import.meta.env.VITE_API_BASE_URL;
+    } else {
+      // Default to port 3000 for API
+      const currentOrigin = window.location.origin;
+      this.baseUrl = currentOrigin.replace(':5173', ':3000');
+    }
+    
+    // Ensure we have /api at the end
+    if (!this.baseUrl.endsWith('/api')) {
+      this.baseUrl += '/api';
+    }
+    
+    console.log('🔗 API Service initialized with base URL:', this.baseUrl);
     this.baseUrl = baseUrl;
   }
 
