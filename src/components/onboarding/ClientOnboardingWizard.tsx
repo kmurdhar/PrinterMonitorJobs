@@ -78,7 +78,7 @@ const ClientOnboardingWizard: React.FC<ClientOnboardingWizardProps> = ({ isOpen,
     
     const serverUrl = window.location.origin;
     const dashboardUrl = `${serverUrl}/?client=${clientId}`;
-    const apiEndpoint = `${serverUrl}/api`;
+    const apiEndpoint = `${serverUrl.replace(':5173', ':3000')}/api`;
     
     const credentials = {
       clientId,

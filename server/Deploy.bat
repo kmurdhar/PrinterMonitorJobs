@@ -2,7 +2,7 @@
 echo PrintMonitor Client Installation for asdasjdhkj
 echo ==========================================
 set CLIENT_ID=asdasjdhkj-zfsl6x7t
-set API_ENDPOINT=http://192.168.1.102:5173/api
+set API_ENDPOINT=http://192.168.1.102:3000/api
 set API_KEY=pk_eu1v649ny5i
 echo Installing PrintMonitor Service...
 echo.

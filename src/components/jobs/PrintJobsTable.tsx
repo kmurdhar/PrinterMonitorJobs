@@ -150,7 +150,7 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                     <strong>Current Client:</strong> <span className="font-mono">{selectedClient}</span>
                   </p>
                   <p className="text-sm text-yellow-900">
-                    <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin}/api</span>
+                    <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin.replace(':5173', ':3000')}/api</span>
                   </p>
                 </div>
               </div>
