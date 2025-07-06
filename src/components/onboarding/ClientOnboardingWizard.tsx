@@ -564,7 +564,6 @@ echo "Dashboard: ${credentials.dashboardUrl}"`
             printerCount: formData.printerCount,
             estimatedUsers: formData.estimatedUsers,
             subscriptionPlan: formData.subscriptionPlan,
-            dashboardUrl: credentials.dashboardUrl,
             createdAt: new Date().toISOString()
           }, null, 2)
         }
