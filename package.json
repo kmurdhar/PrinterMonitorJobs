@@ -13,10 +13,10 @@
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist node_modules/.vite",
     "fresh-install": "rm -rf node_modules package-lock.json && npm install",
-    "server": "cd server && npm install && npm start",
-    "server:dev": "cd server && npm install && npm run dev",
-    "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\"",
-    "build:full": "npm run build && cd server && npm install"
+    "server": "if [ -d server ]; then cd server && npm install && npm start; else echo 'Server directory not found. Please ensure server directory exists.'; fi",
+    "server:dev": "if [ -d server ]; then cd server && npm install && npm run dev; else echo 'Server directory not found. Please ensure server directory exists.'; fi",
+    "full-stack": "if [ -d server ]; then concurrently \"npm run server:dev\" \"npm run dev\"; else npm run dev; fi",
+    "build:full": "npm run build && if [ -d server ]; then cd server && npm install; fi"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
