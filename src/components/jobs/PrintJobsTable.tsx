@@ -138,7 +138,9 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
       console.log('🔄 Manual refresh triggered for client:', selectedClient);
       
       // Force reload from server
-      const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
+      const clientIdParam = selectedClient === 'overall' ? undefined : selectedClient;
+      console.log('📋 Refreshing jobs for client:', clientIdParam);
+      const serverJobs = await apiService.getPrintJobs(clientIdParam);
       if (serverJobs && serverJobs.length > 0) {
         const formattedJobs = serverJobs.map((job: any) => ({
           ...job,
@@ -159,11 +161,13 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   const handleTestPrint = async () => {
     try {
       console.log('🧪 Triggering test print for client:', selectedClient);
-      const result = await apiService.triggerTestPrint(selectedClient === 'overall' ? 'test-client' : selectedClient);
+      const clientIdParam = selectedClient === 'overall' ? 'test-client' : selectedClient;
+      console.log('🧪 Using client ID for test:', clientIdParam);
+      const result = await apiService.triggerTestPrint(clientIdParam);
       console.log('✅ Test print triggered:', result);
       
       // Refresh after test print
-      setTimeout(handleRefresh, 1000);
+      setTimeout(handleRefresh, 2000);
     } catch (error) {
       console.error('❌ Error triggering test print:', error);
     }

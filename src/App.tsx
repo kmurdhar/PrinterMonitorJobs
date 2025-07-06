@@ -88,12 +88,21 @@ function App() {
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected, lastMessage } = useWebSocket(
-    `ws://localhost:3000`,
+    `ws://${window.location.hostname}:3000`,
     (message) => {
       console.log('WebSocket message received:', message);
       
       if (message.type === 'new_print_job') {
-        setPrintJobs(prev => [message.job, ...prev]);
+        const newJob = {
+          ...message.job,
+          timestamp: new Date(message.job.timestamp)
+        };
+        setPrintJobs(prev => {
+          const updated = [newJob, ...prev];
+          // Also save to localStorage
+          localStorage.setItem('printJobs', JSON.stringify(updated));
+          return updated;
+        });
         
         // Update printer if provided
         if (message.printer) {
@@ -132,7 +141,9 @@ function App() {
         setIsServerConnected(true);
 
         // Load print jobs from server
-        const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
+        const clientIdParam = selectedClient === 'overall' ? undefined : selectedClient;
+        console.log('📋 Requesting jobs for client:', clientIdParam);
+        const serverJobs = await apiService.getPrintJobs(clientIdParam);
         if (serverJobs && serverJobs.length > 0) {
           console.log(`📄 Loaded ${serverJobs.length} print jobs from server for client:`, selectedClient);
           const formattedJobs = serverJobs.map((job: any) => ({
@@ -145,10 +156,11 @@ function App() {
           localStorage.setItem('printJobs', JSON.stringify(formattedJobs));
         } else {
           console.log('📄 No print jobs found on server for client:', selectedClient);
+          // Don't clear existing jobs, just log that server has no new ones
         }
 
         // Load printers from server
-        const serverPrinters = await apiService.getPrinters(selectedClient === 'overall' ? undefined : selectedClient);
+        const serverPrinters = await apiService.getPrinters(clientIdParam);
         if (serverPrinters && serverPrinters.length > 0) {
           console.log(`🖨️ Loaded ${serverPrinters.length} printers from server for client:`, selectedClient);
           setPrinters(serverPrinters);
@@ -169,8 +181,8 @@ function App() {
 
     checkServerAndLoadData();
     
-    // Set up periodic refresh to check for new print jobs
-    const interval = setInterval(checkServerAndLoadData, 5000); // Check every 5 seconds
+    // Set up periodic refresh to check for new print jobs every 10 seconds
+    const interval = setInterval(checkServerAndLoadData, 10000);
     
     return () => clearInterval(interval);
   }, [selectedClient]);

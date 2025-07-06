@@ -25,7 +25,7 @@ const ClientStatsCards: React.FC<ClientStatsCardsProps> = ({ stats, isOverallVie
       value: stats.jobsToday.toLocaleString(),
       icon: FileText,
       color: 'bg-blue-500',
-      change: stats.jobsToday > 0 ? '+12%' : 'No activity',
+      change: stats.jobsToday > 0 ? `${stats.jobsToday} jobs` : 'No activity',
       changeColor: stats.jobsToday > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
@@ -41,20 +41,20 @@ const ClientStatsCards: React.FC<ClientStatsCardsProps> = ({ stats, isOverallVie
       value: stats.totalPages.toLocaleString(),
       icon: TrendingUp,
       color: 'bg-purple-500',
-      change: stats.totalPages > 0 ? '+8%' : 'No data',
+      change: stats.totalPages > 0 ? `${stats.totalPages} pages` : 'No data',
       changeColor: stats.totalPages > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
       title: 'Total Cost',
-      value: `$${stats.totalCost.toLocaleString()}`,
+      value: `$${stats.totalCost.toFixed(2)}`,
       icon: DollarSign,
       color: 'bg-yellow-500',
-      change: stats.totalCost > 0 ? '+5%' : 'No costs',
+      change: stats.totalCost > 0 ? `$${stats.totalCost.toFixed(2)}` : 'No costs',
       changeColor: stats.totalCost > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
       title: 'Failure Rate',
-      value: `${stats.failureRate}%`,
+      value: `${stats.failureRate.toFixed(1)}%`,
       icon: AlertTriangle,
       color: 'bg-red-500',
       change: stats.failureRate === 0 ? 'Excellent' : 'Needs attention',

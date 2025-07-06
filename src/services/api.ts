@@ -62,7 +62,9 @@ class ApiService {
     if (clientId) params.append('clientId', clientId);
     if (limit) params.append('limit', limit.toString());
     
-    return this.request(`/print-jobs?${params.toString()}`);
+    const endpoint = `/print-jobs${params.toString() ? '?' + params.toString() : ''}`;
+    console.log(`📋 Requesting print jobs: ${endpoint}`);
+    return this.request(endpoint);
   }
 
   async submitPrintJob(jobData: any) {

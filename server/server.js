@@ -327,10 +327,22 @@ app.get('/api/print-jobs', (req, res) => {
   const { clientId, limit = 100 } = req.query;
   
   console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
+  console.log(`📋 Total jobs in memory: ${printJobs.length}`);
+  
+  // Log all jobs for debugging
+  if (printJobs.length > 0) {
+    console.log('📋 Sample jobs in memory:', printJobs.slice(0, 3).map(job => ({
+      id: job.id,
+      fileName: job.fileName,
+      clientId: job.clientId,
+      timestamp: job.timestamp
+    })));
+  }
   
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
     jobs = printJobs.filter(job => job.clientId === clientId);
+    console.log(`📋 Filtered jobs for client ${clientId}: ${jobs.length}`);
   }
   
   console.log(`📋 Found ${jobs.length} jobs for client ${clientId || 'overall'}`);
