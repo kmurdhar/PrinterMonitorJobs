@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap } from 'lucide-react';
+import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap, AlertTriangle } from 'lucide-react';
 import { PrintJob } from '../../types';
 import { RefreshCw } from 'lucide-react';
 import { apiService } from '../../services/api';

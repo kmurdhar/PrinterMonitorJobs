@@ -234,6 +234,7 @@ app.get('/api/websocket/status', (req, res) => {
 // Print job submission endpoint (called by Windows Print Listener)
 app.post('/api/print-jobs', (req, res) => {
   try {
+    console.log('📄 Print job submission received:', req.body);
     const {
       clientId,
       apiKey,
@@ -278,12 +279,12 @@ app.post('/api/print-jobs', (req, res) => {
     // Create print job
     const printJob = {
       id: `job-${uuidv4()}`,
-      fileName,
-      user: systemName, // Use system name as user identifier
-      systemName,
-      department,
-      printer: printerName,
-      pages: parseInt(pages),
+      fileName: fileName || 'Unknown Document',
+      user: systemName || 'Unknown System', // Use system name as user identifier
+      systemName: systemName || 'Unknown System',
+      department: department || 'General',
+      printer: printerName || 'Unknown Printer',
+      pages: parseInt(pages) || 1,
       status: 'success', // Assume success unless specified otherwise
       timestamp: new Date(),
       cost,
@@ -295,6 +296,8 @@ app.post('/api/print-jobs', (req, res) => {
 
     // Store the print job
     printJobs.push(printJob);
+
+    console.log(`✅ Print job stored in memory. Total jobs: ${printJobs.length}`);
 
     // Broadcast real-time update
     broadcast({
@@ -324,7 +327,7 @@ app.post('/api/print-jobs', (req, res) => {
 
 // Get print jobs for a client
 app.get('/api/print-jobs', (req, res) => {
-  const { clientId, limit = 100 } = req.query;
+  const { clientId, limit = 1000 } = req.query;
   
   console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
   console.log(`📋 Total jobs in memory: ${printJobs.length}`);
@@ -342,14 +345,24 @@ app.get('/api/print-jobs', (req, res) => {
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
     jobs = printJobs.filter(job => job.clientId === clientId);
-    console.log(`📋 Filtered jobs for client ${clientId}: ${jobs.length}`);
+    console.log(`📋 Filtered jobs for client ${clientId}: found ${jobs.length} jobs`);
+  } else {
+    console.log(`📋 No client filter applied, returning all ${jobs.length} jobs`);
   }
   
-  console.log(`📋 Found ${jobs.length} jobs for client ${clientId || 'overall'}`);
+  // Log sample jobs for debugging
+  if (jobs.length > 0) {
+    console.log('📋 Sample job:', {
+      id: jobs[0].id,
+      fileName: jobs[0].fileName,
+      clientId: jobs[0].clientId,
+      timestamp: jobs[0].timestamp
+    });
+  }
   
   // Sort by timestamp (newest first) and limit results
   jobs = jobs
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, parseInt(limit));
   
   console.log(`📋 Returning ${jobs.length} jobs after sorting and limiting`);
@@ -554,6 +567,7 @@ app.post('/api/debug/test-print/:clientId', (req, res) => {
     job: testJob
   });
 });
+
 // Check if dist directory exists before serving static files
 const distPath = path.join(__dirname, '../dist');
 const distExists = fs.existsSync(distPath);
@@ -565,7 +579,11 @@ if (distExists) {
   
   // Catch-all handler for SPA routing
   app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+    if (req.path.startsWith('/api')) {
+      res.status(404).json({ error: 'API endpoint not found' });
+    } else {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
   });
 } else {
   console.log('⚠️  Dist directory not found - serving API only');
@@ -602,7 +620,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🖨️  PrintMonitor Server running on port ${PORT}`);
   console.log(`🔗 API: http://localhost:${PORT}/api`);
   console.log(`📡 WebSocket: ws://localhost:${PORT}`);
-  console.log(`🌐 Network: http://192.168.29.84:${PORT}`);
+  console.log(`🌐 Network: http://${process.env.HOST || '192.168.1.102'}:${PORT}`);
   
   if (distExists) {
     console.log(`📊 Dashboard: http://localhost:${PORT}`);

@@ -89,7 +89,7 @@ function App() {
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected, lastMessage } = useWebSocket(
     `ws://${window.location.hostname}:3000`,
-    (message) => {
+    (message: any) => {
       console.log('WebSocket message received:', message);
       
       if (message.type === 'new_print_job') {
@@ -143,7 +143,7 @@ function App() {
         // Load print jobs from server
         const clientIdParam = selectedClient === 'overall' ? undefined : selectedClient;
         console.log('📋 Requesting jobs for client:', clientIdParam);
-        const serverJobs = await apiService.getPrintJobs(clientIdParam);
+        const serverJobs = await apiService.getPrintJobs(clientIdParam, 1000);
         if (serverJobs && serverJobs.length > 0) {
           console.log(`📄 Loaded ${serverJobs.length} print jobs from server for client:`, selectedClient);
           const formattedJobs = serverJobs.map((job: any) => ({
@@ -182,7 +182,7 @@ function App() {
     checkServerAndLoadData();
     
     // Set up periodic refresh to check for new print jobs every 10 seconds
-    const interval = setInterval(checkServerAndLoadData, 10000);
+    const interval = setInterval(checkServerAndLoadData, 30000);
     
     return () => clearInterval(interval);
   }, [selectedClient]);

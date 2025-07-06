@@ -8,7 +8,7 @@ interface WebSocketMessage {
 const getWebSocketUrl = () => {
   // Always use port 3000 for WebSocket connection
   const currentOrigin = window.location.origin;
-  const wsOrigin = currentOrigin.replace(':5173', ':3000');
+  const wsOrigin = currentOrigin.replace(/:\d+/, ':3000');
   
   try {
     const url = new URL(wsOrigin);
@@ -47,6 +47,12 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
     // Use dynamic WebSocket URL instead of the passed url parameter
     const wsUrl = getWebSocketUrl();
 
+    // Limit reconnection attempts for WebSocket to avoid excessive connections
+    if (reconnectAttemptsRef.current >= 2) {
+      console.log('⚠️ Limiting WebSocket reconnection attempts to avoid browser overload');
+      return;
+    }
+
     try {
       console.log(`🔌 Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttemptsRef.current + 1})`);
       
@@ -76,7 +82,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       };
       
       ws.current.onclose = (event) => {
-        console.log(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
+        console.log(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'unknown'})`);
         setIsConnected(false);
         
         // Only attempt to reconnect if it wasn't a manual close (code 1000)
@@ -92,6 +98,8 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
           }, delay);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           console.log('❌ Max reconnection attempts reached. Stopping reconnection attempts.');
+        } else if (event.code === 1000) {
+          console.log('👋 Clean WebSocket disconnection, no reconnection needed');
         }
       };
       
