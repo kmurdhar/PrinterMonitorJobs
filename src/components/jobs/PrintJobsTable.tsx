@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap, AlertTriangle } from 'lucide-react';
+import { FileText, User, Printer, Calendar, AlertCircle, CheckCircle, Clock, Plus, Monitor, Building, Zap, AlertTriangle, RefreshCw } from 'lucide-react';
 import { PrintJob } from '../../types';
-import { RefreshCw } from 'lucide-react';
 import { apiService } from '../../services/api';
 
 interface PrintJobsTableProps {
@@ -57,23 +56,23 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   const simulatePrintJob = () => {
     const sampleJobs = [
       {
-        fileName: 'Financial_Report_Q4.pdf',
-        systemName: 'FINANCE-PC-01',
-        printer: 'HP-LaserJet-Pro-01',
+        fileName: `Financial_Report_${new Date().toISOString().slice(0,10)}.pdf`,
+        systemName: `${selectedClient}-FINANCE-PC-01`,
+        printer: 'HP LaserJet Pro M404n',
         pages: 15,
         department: 'Finance'
       },
       {
-        fileName: 'Marketing_Proposal.docx',
-        systemName: 'MARKETING-LAPTOP-03',
-        printer: 'Canon-PIXMA-02',
+        fileName: `Marketing_Proposal_${new Date().toISOString().slice(0,10)}.docx`,
+        systemName: `${selectedClient}-MARKETING-LAPTOP-03`,
+        printer: 'Canon PIXMA Pro-200',
         pages: 8,
         department: 'Marketing'
       },
       {
-        fileName: 'Employee_Handbook.pdf',
-        systemName: 'HR-WORKSTATION-02',
-        printer: 'Brother-HL-L2350DW-03',
+        fileName: `Employee_Handbook_${new Date().toISOString().slice(0,10)}.pdf`,
+        systemName: `${selectedClient}-HR-WORKSTATION-02`,
+        printer: 'Brother HL-L2350DW',
         pages: 42,
         department: 'HR'
       },
@@ -111,15 +110,15 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
     
     const newJob: PrintJob = {
       id: `job-${Date.now()}`,
-      fileName: randomJob.fileName,
-      user: randomJob.systemName, // Using system name as user identifier
-      systemName: randomJob.systemName,
-      department: randomJob.department,
-      printer: randomJob.printer,
-      pages: randomJob.pages,
+      fileName: randomJob.fileName || `Document_${Date.now()}.pdf`,
+      user: randomJob.systemName || 'Unknown', // Using system name as user identifier
+      systemName: randomJob.systemName || 'Unknown',
+      department: randomJob.department || 'General',
+      printer: randomJob.printer || 'Default Printer',
+      pages: randomJob.pages || 1,
       status: Math.random() > 0.1 ? 'success' : 'failed', // 90% success rate
       timestamp: new Date(),
-      cost: randomJob.pages * 0.05, // $0.05 per page
+      cost: (randomJob.pages || 1) * 0.05, // $0.05 per page
       fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
       paperSize: 'A4',
       colorMode: Math.random() > 0.7 ? 'color' : 'blackwhite',
@@ -129,6 +128,23 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
     if (onJobsChange) {
       onJobsChange([newJob, ...jobs]);
     }
+    
+    // Also try to send to server
+    try {
+      apiService.submitPrintJob({
+        clientId: selectedClient === 'overall' ? 'default-client' : selectedClient,
+        fileName: newJob.fileName,
+        systemName: newJob.systemName,
+        printerName: newJob.printer,
+        pages: newJob.pages,
+        fileSize: newJob.fileSize,
+        paperSize: newJob.paperSize,
+        colorMode: newJob.colorMode
+      });
+    } catch (error) {
+      console.error('Failed to send simulated job to server:', error);
+    }
+    
     setIsSimulateModalOpen(false);
   };
 

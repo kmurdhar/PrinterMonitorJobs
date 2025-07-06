@@ -26,13 +26,15 @@ if %errorLevel% neq 0 (
     echo ERROR: PowerShell is required but not available!
     pause
     exit /b 1
-set API_ENDPOINT=http://192.168.1.102:3000
+
+REM Change to the script's directory
+cd /d "%~dp0"
 
 echo Installing PrintMonitor Service...
 echo.
-powershell.exe -ExecutionPolicy Bypass -File "install-service.ps1" -ClientId "%CLIENT_ID%" -ApiEndpoint "%API_ENDPOINT%" -ApiKey "%API_KEY%"
+
 REM Run the PowerShell installer
-powershell -ExecutionPolicy Bypass -File "install-service.ps1" -ClientId "%CLIENT_ID%" -ApiEndpoint "%API_ENDPOINT%" -ApiKey "%API_KEY%"
+powershell -ExecutionPolicy Bypass -File "%~dp0install-service.ps1" -ClientId "%CLIENT_ID%" -ApiEndpoint "%API_ENDPOINT%" -ApiKey "%API_KEY%"
 
 if %errorLevel% equ 0 (
     echo.

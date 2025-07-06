@@ -8,19 +8,12 @@ interface WebSocketMessage {
 const getWebSocketUrl = () => {
   // Always use port 3000 for WebSocket connection
   const currentOrigin = window.location.origin;
-  const wsOrigin = currentOrigin.replace(/:\d+/, ':3000');
+  // Extract hostname without port
+  const hostname = window.location.hostname;
+  const wsUrl = `ws://${hostname}:3000`;
   
-  try {
-    const url = new URL(wsOrigin);
-    // Convert HTTP protocol to WebSocket protocol
-    const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProtocol}//${url.host}`;
-  } catch (error) {
-    // Fallback
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    return `${protocol}//${host}:3000`;
-  }
+  console.log(`🔌 WebSocket URL: ${wsUrl}`);
+  return wsUrl;
 };
 
 export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage) => void) => {
@@ -42,18 +35,12 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
     // Don't try to connect if we're already connected or if we've exceeded max attempts
     if (ws.current?.readyState === WebSocket.OPEN || reconnectAttemptsRef.current >= maxReconnectAttempts) {
       return;
-    }
-
-    // Use dynamic WebSocket URL instead of the passed url parameter
-    const wsUrl = getWebSocketUrl();
-
-    // Limit reconnection attempts for WebSocket to avoid excessive connections
-    if (reconnectAttemptsRef.current >= 2) {
-      console.log('⚠️ Limiting WebSocket reconnection attempts to avoid browser overload');
-      return;
-    }
+    }    
 
     try {
+      // Use dynamic WebSocket URL instead of the passed url parameter
+      const wsUrl = getWebSocketUrl();
+      
       console.log(`🔌 Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttemptsRef.current + 1})`);
       
       // Close existing connection if any
@@ -73,7 +60,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       ws.current.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('📨 WebSocket message received:', message);
+          // console.log('📨 WebSocket message received:', message);
           setLastMessage(message);
           onMessage?.(message);
         } catch (error) {
@@ -82,7 +69,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       };
       
       ws.current.onclose = (event) => {
-        console.log(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'unknown'})`);
+        console.log(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'unknown reason'})`);
         setIsConnected(false);
         
         // Only attempt to reconnect if it wasn't a manual close (code 1000)
@@ -90,7 +77,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000); // Exponential backoff, max 30s
           
-          console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          // console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           
           clearReconnectTimeout();
           reconnectTimeoutRef.current = setTimeout(() => {

@@ -234,7 +234,7 @@ app.get('/api/websocket/status', (req, res) => {
 // Print job submission endpoint (called by Windows Print Listener)
 app.post('/api/print-jobs', (req, res) => {
   try {
-    console.log('📄 Print job submission received:', req.body);
+    console.log('📄 Print job submission received:', JSON.stringify(req.body));
     const {
       clientId,
       apiKey,
@@ -248,7 +248,7 @@ app.post('/api/print-jobs', (req, res) => {
       userName
     } = req.body;
 
-    console.log('📄 Received print job from client:', {
+    console.log('📄 Received print job from client:', JSON.stringify({
       clientId,
       fileName,
       systemName,
@@ -256,7 +256,7 @@ app.post('/api/print-jobs', (req, res) => {
       pages,
       timestamp: new Date().toISOString(),
       clientIP: req.ip || req.connection.remoteAddress
-    });
+    }));
 
     // Validate required fields
     if (!clientId || !fileName || !systemName || !printerName || !pages) {
@@ -297,7 +297,7 @@ app.post('/api/print-jobs', (req, res) => {
     // Store the print job
     printJobs.push(printJob);
 
-    console.log(`✅ Print job stored in memory. Total jobs: ${printJobs.length}`);
+    console.log(`✅ Print job stored in memory. Total jobs: ${printJobs.length}. Job ID: ${printJob.id}`);
 
     // Broadcast real-time update
     broadcast({
@@ -328,7 +328,7 @@ app.post('/api/print-jobs', (req, res) => {
 // Get print jobs for a client
 app.get('/api/print-jobs', (req, res) => {
   const { clientId, limit = 1000 } = req.query;
-  
+
   console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
   console.log(`📋 Total jobs in memory: ${printJobs.length}`);
   
@@ -344,7 +344,7 @@ app.get('/api/print-jobs', (req, res) => {
   
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
-    jobs = printJobs.filter(job => job.clientId === clientId);
+    jobs = printJobs.filter(job => job.clientId === clientId || job.clientId === 'test-client');
     console.log(`📋 Filtered jobs for client ${clientId}: found ${jobs.length} jobs`);
   } else {
     console.log(`📋 No client filter applied, returning all ${jobs.length} jobs`);
