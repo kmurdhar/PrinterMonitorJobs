@@ -89,7 +89,7 @@ function App() {
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected, lastMessage } = useWebSocket(
     `ws://${window.location.hostname}:3000`,
-    (message: any) => {
+    (message) => {
       console.log('WebSocket message received:', message);
       
       if (message.type === 'new_print_job') {
@@ -107,7 +107,16 @@ function App() {
         // Update printer if provided
         if (message.printer) {
           setPrinters(prev => {
-            const existingIndex = prev.findIndex(p => p.id === message.printer.id);
+            // Check if this printer belongs to the current client
+            if (selectedClient !== 'overall' && message.clientId !== selectedClient) {
+              return prev;
+            }
+            
+            const existingIndex = prev.findIndex(p => 
+              p.id === message.printer.id || 
+              p.name === message.printer.name
+            );
+            
             if (existingIndex >= 0) {
               const updated = [...prev];
               updated[existingIndex] = message.printer;
@@ -145,7 +154,7 @@ function App() {
         console.log('📋 Requesting jobs for client:', clientIdParam);
         const serverJobs = await apiService.getPrintJobs(clientIdParam, 1000);
         if (serverJobs && serverJobs.length > 0) {
-          console.log(`📄 Loaded ${serverJobs.length} print jobs from server for client:`, selectedClient);
+          console.log(`📄 Loaded ${serverJobs.length} print jobs from server for client:`, clientIdParam || 'all');
           const formattedJobs = serverJobs.map((job: any) => ({
             ...job,
             timestamp: new Date(job.timestamp)
@@ -156,7 +165,16 @@ function App() {
           localStorage.setItem('printJobs', JSON.stringify(formattedJobs));
         } else {
           console.log('📄 No print jobs found on server for client:', selectedClient);
-          // Don't clear existing jobs, just log that server has no new ones
+          // If no jobs found, try to simulate a test print job
+          if (selectedClient !== 'overall') {
+            try {
+              console.log('🧪 No jobs found, triggering test print job');
+              await apiService.triggerTestPrint(selectedClient);
+              console.log('✅ Test print job triggered');
+            } catch (error) {
+              console.error('❌ Failed to trigger test print job:', error);
+            }
+          }
         }
 
         // Load printers from server
