@@ -7,12 +7,11 @@ interface WebSocketMessage {
 
 const getWebSocketUrl = () => {
   // Always use port 3000 for WebSocket connection
-  const currentOrigin = window.location.origin;
   // Extract hostname without port
   const hostname = window.location.hostname;
   const wsUrl = `ws://${hostname}:3000`;
   
-  console.log(`🔌 WebSocket URL: ${wsUrl}`);
+  // console.log(`🔌 WebSocket URL: ${wsUrl}`);
   return wsUrl;
 };
 
@@ -53,8 +52,14 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       ws.current.onopen = () => {
         console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset attempts on successful connection
+        // Reset attempts on successful connection
+        reconnectAttemptsRef.current = 0; 
         clearReconnectTimeout();
+        
+        // Send a ping message to keep the connection alive
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
+        }
       };
       
       ws.current.onmessage = (event) => {
@@ -76,9 +81,7 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000); // Exponential backoff, max 30s
-          
-          // console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          
+                    
           clearReconnectTimeout();
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -119,6 +122,19 @@ export const useWebSocket = (url: string, onMessage?: (message: WebSocketMessage
       }
     };
   }, [connect, clearReconnectTimeout]);
+
+  // Set up a ping interval to keep the connection alive
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    const pingInterval = setInterval(() => {
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
+      }
+    }, 30000); // Send a ping every 30 seconds
+    
+    return () => clearInterval(pingInterval);
+  }, [isConnected]);
 
   const sendMessage = useCallback((message: any) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {

@@ -3,7 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = API_BASE_URL) {
+  constructor(baseUrl: string = API_BASE_URL) {    
     // Determine the correct API base URL
     if (baseUrl) {
       this.baseUrl = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
@@ -14,8 +14,8 @@ class ApiService {
     } else {
       // Default to port 3000 for API
       const currentOrigin = window.location.origin;
-      const hostname = window.location.hostname;
-      this.baseUrl = `http://${hostname}:3000`;
+      // Use the same hostname as the current page
+      this.baseUrl = currentOrigin.replace(':5173', ':3000');
       this.baseUrl = this.baseUrl.endsWith('/api') ? this.baseUrl : `${this.baseUrl}/api`;
     }
     
@@ -58,7 +58,9 @@ class ApiService {
   // Print jobs
   async getPrintJobs(clientId?: string, limit?: number) {
     const params = new URLSearchParams();
-    if (clientId && clientId !== 'undefined' && clientId !== 'overall') params.append('clientId', clientId);
+    if (clientId && clientId !== 'undefined' && clientId !== 'overall' && clientId !== 'null') {
+      params.append('clientId', clientId);
+    }
     if (limit && !isNaN(limit)) params.append('limit', limit.toString());
     
     const endpoint = `/print-jobs${params.toString() ? '?' + params.toString() : ''}`;
@@ -76,7 +78,9 @@ class ApiService {
   // Printers
   async getPrinters(clientId?: string) {
     const params = new URLSearchParams();
-    if (clientId && clientId !== 'undefined' && clientId !== 'overall') params.append('clientId', clientId);
+    if (clientId && clientId !== 'undefined' && clientId !== 'overall' && clientId !== 'null') {
+      params.append('clientId', clientId);
+    }
     
     return this.request(`/printers?${params.toString()}`);
   }
@@ -96,7 +100,9 @@ class ApiService {
   // Stats
   async getStats(clientId?: string) {
     const params = new URLSearchParams();
-    if (clientId && clientId !== 'undefined') params.append('clientId', clientId);
+    if (clientId && clientId !== 'undefined' && clientId !== 'overall' && clientId !== 'null') {
+      params.append('clientId', clientId);
+    }
     
     return this.request(`/stats?${params.toString()}`);
   }
@@ -104,8 +110,10 @@ class ApiService {
   // Test endpoints
   async simulatePrintJob(clientId?: string) {
     return this.request('/test/simulate-print', {
-      method: 'POST',
-      body: JSON.stringify({ clientId }),
+      method: 'POST', 
+      body: JSON.stringify({ 
+        clientId: clientId || 'test-client'
+      }),
     });
   }
 

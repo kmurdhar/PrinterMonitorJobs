@@ -12,8 +12,8 @@ if %errorLevel% neq 0 (
 )
 
 REM Configuration - Replace these values with actual client credentials
-set CLIENT_ID=your-client-id-here
-set API_ENDPOINT=http://192.168.29.84:3000/api
+set CLIENT_ID=kamlesh-pw0ab0f9
+set API_ENDPOINT=http://192.168.1.102:3000/api
 set API_KEY=your-api-key-here
 
 echo Client ID: %CLIENT_ID%

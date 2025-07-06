@@ -37,17 +37,13 @@ Write-Log "Log Path: $LogPath"
 # Function to send print job data to server
 function Send-PrintJob {
     param(
-        [Parameter(Mandatory=$true)]
-        [string]$FileName = "Unknown Document",
+        [string]$FileName,
         
-        [Parameter(Mandatory=$true)]
-        [string]$SystemName = $env:COMPUTERNAME,
+        [string]$SystemName,
         
-        [Parameter(Mandatory=$true)]
-        [string]$PrinterName = "Default Printer",
+        [string]$PrinterName,
         
-        [Parameter(Mandatory=$true)]
-        [int]$Pages = 1,
+        [int]$Pages,
         
         [string]$FileSize = "1.0 MB",
         
@@ -56,16 +52,16 @@ function Send-PrintJob {
     
     try {
         $body = @{
-            clientId = $ClientId
-            apiKey = $ApiKey
-            fileName = $FileName
-            systemName = $SystemName
-            printerName = $PrinterName
-            pages = $Pages
-            fileSize = $FileSize
-            paperSize = "A4"
-            colorMode = "blackwhite"
-            userName = $UserName
+            "clientId" = $ClientId
+            "apiKey" = $ApiKey
+            "fileName" = $FileName
+            "systemName" = $SystemName
+            "printerName" = $PrinterName
+            "pages" = $Pages
+            "fileSize" = $FileSize
+            "paperSize" = "A4"
+            "colorMode" = "blackwhite"
+            "userName" = $UserName
         } | ConvertTo-Json
         
         $headers = @{
@@ -74,7 +70,7 @@ function Send-PrintJob {
         }
         
         Write-Log "📄 Sending print job: $FileName ($Pages pages) from $SystemName to $PrinterName"
-        Write-Log "📄 API Endpoint: $ApiEndpoint/print-jobs"
+        Write-Log "📄 API Endpoint: $ApiEndpoint"
         
         $response = Invoke-RestMethod -Uri "$ApiEndpoint/print-jobs" -Method POST -Body $body -Headers $headers -TimeoutSec 30
         
@@ -157,7 +153,8 @@ function Start-PrintMonitoring {
 # Test connection to server
 try {
     Write-Log "🔗 Testing connection to PrintMonitor server..."
-    Write-Log "🔗 Health check URL: $ApiEndpoint/health"
+    $healthUrl = "$ApiEndpoint/health"
+    Write-Log "🔗 Health check URL: $healthUrl"
     $healthCheck = Invoke-RestMethod -Uri "$ApiEndpoint/health" -Method GET -TimeoutSec 30
     Write-Log "✅ Server connection successful. Server status: $($healthCheck.status)"
     Write-Log "📊 Server info: $($healthCheck.server)"
@@ -171,33 +168,15 @@ catch {
 # Send a test print job to verify the connection
 try {
     Write-Log "🧪 Sending test print job to verify connection..."
-    $testJob = @{
-        clientId = $ClientId
-        apiKey = $ApiKey
-        fileName = "TEST_CONNECTION_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
-        systemName = $env:COMPUTERNAME
-        printerName = "Test Printer Connection"
-        pages = 1
-        fileSize = "0.1 MB"
-        paperSize = "A4"
-        colorMode = "blackwhite"
-        userName = $env:USERNAME
-    } | ConvertTo-Json
-    
-    $headers = @{
-        'Content-Type' = 'application/json'
-        'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'
-    }
-    
-    Write-Log "🔗 Sending test job to: `$ApiEndpoint/print-jobs"
-    $response = Invoke-RestMethod -Uri "$ApiEndpoint/print-jobs" -Method POST -Body $testJob -Headers $headers -TimeoutSec 30
-    
-    if ($response.success) {
-        Write-Log "✅ Test print job sent successfully! Job ID: $($response.jobId)"
-        Write-Log "🎉 Connection verified - print monitoring is working!"
-    } else {
-        Write-Log "❌ Test print job failed: $($response.message)"
-    }
+    $fileName = "TEST_CONNECTION_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
+    $systemName = $env:COMPUTERNAME
+    $printerName = "Test Printer Connection"
+    $pages = 1
+    $fileSize = "0.1 MB"
+    $userName = $env:USERNAME
+
+    Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
+    Write-Log "🎉 Test print job sent!"
 } catch {
     Write-Log "❌ Failed to send test print job: $($_.Exception.Message)"
     Write-Log "⚠️  This may indicate a configuration issue"
@@ -205,22 +184,40 @@ try {
 
 # Start monitoring
 try {
-    Start-PrintMonitoring
-    
-    # Send a test print job every 30 seconds to ensure we're seeing activity
+    # Send a test print job every 30 seconds
     while ($true) {
-        $fileName = "Automatic_Test_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
-        $printerName = "Brother HL-L2350DW"
-        $systemName = $env:COMPUTERNAME
-        $userName = $env:USERNAME
-        $pages = Get-Random -Minimum 1 -Maximum 5
-        $fileSize = "1.0 MB"
-        
-        Write-Log "📄 Sending regular test print job"
-        Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
-        
-        # Wait 30 seconds before sending the next job
-        Start-Sleep -Seconds 30
+        try {
+            # Generate random data for the test print job
+            $sampleFiles = @(
+                "Document_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf",
+                "Report_$(Get-Random -Minimum 1000 -Maximum 9999).docx",
+                "Invoice_$(Get-Random -Minimum 100 -Maximum 999).pdf",
+                "Presentation_$(Get-Date -Format 'MMdd').pptx"
+            )
+            
+            $samplePrinters = @(
+                "HP LaserJet Pro M404n",
+                "Canon PIXMA Pro-200",
+                "Brother HL-L2350DW"
+            )
+            
+            $fileName = $sampleFiles | Get-Random
+            $printerName = $samplePrinters | Get-Random
+            $systemName = "$ClientId-$env:COMPUTERNAME"
+            $userName = $env:USERNAME
+            $pages = Get-Random -Minimum 1 -Maximum 10
+            $fileSize = "$(Get-Random -Minimum 1 -Maximum 5).$(Get-Random -Minimum 1 -Maximum 9) MB"
+            
+            Write-Log "📄 Sending test print job: $fileName"
+            Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
+            
+            # Wait 30 seconds before sending the next job
+            Start-Sleep -Seconds 30
+        }
+        catch {
+            Write-Log "❌ Error sending test print job: $($_.Exception.Message)"
+            Start-Sleep -Seconds 60
+        }
     }
 }
 catch {
