@@ -247,12 +247,14 @@ app.post('/api/print-jobs', (req, res) => {
       userName
     } = req.body;
 
-    console.log('Received print job:', {
+    console.log('📄 Received print job from client:', {
       clientId,
       fileName,
       systemName,
       printerName,
-      pages
+      pages,
+      timestamp: new Date().toISOString(),
+      clientIP: req.ip || req.connection.remoteAddress
     });
 
     // Validate required fields
@@ -302,7 +304,7 @@ app.post('/api/print-jobs', (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    console.log(`Print job captured: ${fileName} from ${systemName} (Client: ${clientId})`);
+    console.log(`✅ Print job captured: ${fileName} from ${systemName} (Client: ${clientId})`);
 
     res.json({
       success: true,
@@ -312,7 +314,7 @@ app.post('/api/print-jobs', (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error processing print job:', error);
+    console.error('❌ Error processing print job:', error);
     res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -468,7 +470,7 @@ app.post('/api/test/simulate-print', (req, res) => {
     timestamp: new Date().toISOString()
   });
 
-  console.log(`Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);
+  console.log(`🎭 Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);
 
   res.json({
     success: true,
@@ -479,6 +481,62 @@ app.post('/api/test/simulate-print', (req, res) => {
   });
 });
 
+// Debug endpoint to check client connections
+app.get('/api/debug/client/:clientId', (req, res) => {
+  const { clientId } = req.params;
+  
+  const clientJobs = printJobs.filter(job => job.clientId === clientId);
+  const clientPrinters = printers.filter(printer => printer.clientId === clientId);
+  
+  res.json({
+    clientId,
+    totalJobs: clientJobs.length,
+    totalPrinters: clientPrinters.length,
+    recentJobs: clientJobs.slice(0, 5),
+    serverTime: new Date().toISOString(),
+    websocketConnections: wsConnections.size
+  });
+});
+
+// Endpoint to manually trigger a test print job for a specific client
+app.post('/api/debug/test-print/:clientId', (req, res) => {
+  const { clientId } = req.params;
+  
+  console.log(`🧪 Manual test print job triggered for client: ${clientId}`);
+  
+  // Create a test print job
+  const testJob = {
+    id: `job-${uuidv4()}`,
+    fileName: `TEST_MANUAL_${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`,
+    user: 'TEST-SYSTEM',
+    systemName: 'TEST-SYSTEM',
+    department: 'IT',
+    printer: 'Test Printer',
+    pages: 1,
+    status: 'success',
+    timestamp: new Date(),
+    cost: 0.05,
+    fileSize: '0.1 MB',
+    paperSize: 'A4',
+    colorMode: 'blackwhite',
+    clientId
+  };
+  
+  printJobs.push(testJob);
+  
+  // Broadcast real-time update
+  broadcast({
+    type: 'new_print_job',
+    job: testJob,
+    timestamp: new Date().toISOString()
+  });
+  
+  res.json({
+    success: true,
+    message: 'Test print job created',
+    job: testJob
+  });
+});
 // Check if dist directory exists before serving static files
 const distPath = path.join(__dirname, '../dist');
 const distExists = fs.existsSync(distPath);

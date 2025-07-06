@@ -132,8 +132,40 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          {/* Troubleshooting Section */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-left max-w-2xl mx-auto">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
+              <div>
+                <h4 className="text-sm font-medium text-yellow-900 mb-2">Not seeing print jobs? Check:</h4>
+                <ul className="text-sm text-yellow-800 space-y-1">
+                  <li>• <strong>Server URL:</strong> Client machine can reach {window.location.origin}</li>
+                  <li>• <strong>Print Listener:</strong> PowerShell script is running as Administrator</li>
+                  <li>• <strong>Network:</strong> No firewall blocking port 3000</li>
+                  <li>• <strong>Client ID:</strong> Correct client ID in the URL</li>
+                  <li>• <strong>Test Print:</strong> Try printing a document from the client machine</li>
+                </ul>
+                <div className="mt-3 p-2 bg-white border border-yellow-300 rounded">
+                  <p className="text-sm text-yellow-900">
+                    <strong>Current Client:</strong> <span className="font-mono">{selectedClient}</span>
+                  </p>
+                  <p className="text-sm text-yellow-900">
+                    <strong>API Endpoint:</strong> <span className="font-mono">{window.location.origin}/api</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
+            <button
+              onClick={() => setIsSimulateModalOpen(true)}
+              className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <Zap className="h-4 w-4" />
+              <span>Simulate Print Job (Test)</span>
+            </button>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Print Job History</h2>
               <p className="text-sm text-gray-600 mt-1">

@@ -126,38 +126,48 @@ function App() {
       try {
         // Check server health
         const health = await apiService.healthCheck();
-        console.log('Server health check:', health);
+        console.log('✅ Server health check:', health);
         setIsServerConnected(true);
 
         // Load print jobs from server
         const serverJobs = await apiService.getPrintJobs(selectedClient === 'overall' ? undefined : selectedClient);
         if (serverJobs && serverJobs.length > 0) {
+          console.log(`📄 Loaded ${serverJobs.length} print jobs from server`);
           const formattedJobs = serverJobs.map((job: any) => ({
             ...job,
             timestamp: new Date(job.timestamp)
           }));
           setPrintJobs(formattedJobs);
+        } else {
+          console.log('📄 No print jobs found on server');
         }
 
         // Load printers from server
         const serverPrinters = await apiService.getPrinters(selectedClient === 'overall' ? undefined : selectedClient);
         if (serverPrinters && serverPrinters.length > 0) {
+          console.log(`🖨️ Loaded ${serverPrinters.length} printers from server`);
           setPrinters(serverPrinters);
         }
 
         // Load clients from server
         const serverClients = await apiService.getClients();
         if (serverClients && serverClients.length > 0) {
+          console.log(`🏢 Loaded ${serverClients.length} clients from server`);
           setClients(serverClients);
         }
 
       } catch (error) {
-        console.error('Failed to connect to server:', error);
+        console.error('❌ Failed to connect to server:', error);
         setIsServerConnected(false);
       }
     };
 
     checkServerAndLoadData();
+    
+    // Set up periodic refresh to check for new print jobs
+    const interval = setInterval(checkServerAndLoadData, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(interval);
   }, [selectedClient]);
   
   // Save clients to localStorage whenever clients change

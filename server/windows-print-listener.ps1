@@ -110,7 +110,7 @@ function Start-PrintMonitoring {
             }
             
             # Also simulate some print jobs for demo
-            if ((Get-Random -Minimum 1 -Maximum 100) -lt 5) { # 5% chance every loop
+            if ((Get-Random -Minimum 1 -Maximum 100) -lt 15) { # 15% chance every loop
                 $sampleFiles = @(
                     "Document_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf",
                     "Report_$(Get-Random -Minimum 1000 -Maximum 9999).docx",
@@ -135,7 +135,7 @@ function Start-PrintMonitoring {
                 Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
             }
             
-            Start-Sleep -Seconds 10
+            Start-Sleep -Seconds 20
         }
         catch {
             Write-Log "❌ Error in monitoring loop: $($_.Exception.Message)"
@@ -155,6 +155,40 @@ catch {
     Write-Log "❌ Failed to connect to PrintMonitor server: $($_.Exception.Message)"
     Write-Log "⚠️  Please check that the server is running and accessible at: $ApiEndpoint"
     exit 1
+}
+
+# Send a test print job to verify the connection
+try {
+    Write-Log "🧪 Sending test print job to verify connection..."
+    $testJob = @{
+        clientId = $ClientId
+        apiKey = $ApiKey
+        fileName = "TEST_CONNECTION_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
+        systemName = $env:COMPUTERNAME
+        printerName = "Test Printer Connection"
+        pages = 1
+        fileSize = "0.1 MB"
+        paperSize = "A4"
+        colorMode = "blackwhite"
+        userName = $env:USERNAME
+    } | ConvertTo-Json
+    
+    $headers = @{
+        'Content-Type' = 'application/json'
+        'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'
+    }
+    
+    $response = Invoke-RestMethod -Uri "$ApiEndpoint/print-jobs" -Method POST -Body $testJob -Headers $headers -TimeoutSec 30
+    
+    if ($response.success) {
+        Write-Log "✅ Test print job sent successfully! Job ID: $($response.jobId)"
+        Write-Log "🎉 Connection verified - print monitoring is working!"
+    } else {
+        Write-Log "❌ Test print job failed: $($response.message)"
+    }
+} catch {
+    Write-Log "❌ Failed to send test print job: $($_.Exception.Message)"
+    Write-Log "⚠️  This may indicate a configuration issue"
 }
 
 # Start monitoring
