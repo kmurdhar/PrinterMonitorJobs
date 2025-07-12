@@ -10,11 +10,11 @@
     "build": "echo 'Server does not require a build step - ready to run with npm start'"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
+    "express": "^4.21.2",
     "uuid": "^9.0.1",
-    "ws": "^8.14.2"
+    "ws": "^8.18.3"
   },
   "engines": {
     "node": ">=18.0.0"
