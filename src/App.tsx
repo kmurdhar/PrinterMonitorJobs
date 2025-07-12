@@ -20,6 +20,7 @@ import { generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User, PrintJob, Client } from './types';
 import { apiService } from './services/api';
 import { useWebSocket } from './hooks/useWebSocket';
+import { clearAllData } from './utils/clearData';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,6 +65,18 @@ function App() {
     }
     return [];
   });
+
+  // Add clear data function for development/testing
+  useEffect(() => {
+    // Add global function for clearing data (accessible from browser console)
+    (window as any).clearAllData = clearAllData;
+    
+    // Check for clear data URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('clearData') === 'true') {
+      clearAllData();
+    }
+  }, []);
 
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
   const [users, setUsers] = useState<User[]>(initialUsers);

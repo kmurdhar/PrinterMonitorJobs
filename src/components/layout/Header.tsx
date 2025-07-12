@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, RefreshCw, Download, Building, User, Settings, LogOut, ChevronDown, Globe, ExternalLink } from 'lucide-react';
+import { Bell, Search, RefreshCw, Download, Building, User, Settings, LogOut, ChevronDown, Globe, ExternalLink, Trash2 } from 'lucide-react';
+import { clearAllData } from '../../utils/clearData';
 
 interface HeaderProps {
   activeTab: string;
@@ -140,6 +141,11 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
     }
   };
 
+  const handleClearData = () => {
+    if (window.confirm('⚠️ This will clear ALL application data including clients, print jobs, and settings. This action cannot be undone. Are you sure?')) {
+      clearAllData();
+    }
+  };
   const clearNotifications = () => {
     setNotifications([]);
     setIsNotificationsOpen(false);
@@ -303,6 +309,13 @@ const Header: React.FC<HeaderProps> = ({ activeTab, clientName = 'Demo Client' }
                   <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>
+                  </button>
+                  <button 
+                    onClick={handleClearData}
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Clear All Data</span>
                   </button>
                   <button 
                     onClick={() => window.open(getServerUrl(), '_blank')}
