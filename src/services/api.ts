@@ -5,19 +5,11 @@ class ApiService {
 
   constructor(baseUrl: string = API_BASE_URL) {    
     // Determine the correct API base URL
-    if (baseUrl) {
-      this.baseUrl = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-    } else if (import.meta.env.VITE_API_BASE_URL) {
-      this.baseUrl = import.meta.env.VITE_API_BASE_URL.endsWith('/api') ? 
-        import.meta.env.VITE_API_BASE_URL : 
-        `${import.meta.env.VITE_API_BASE_URL}/api`;
-    } else {
-      // Default to port 3000 for API
-      const currentOrigin = window.location.origin;
-      // Use the same hostname as the current page
-      this.baseUrl = currentOrigin.replace(':5173', ':3000');
-      this.baseUrl = this.baseUrl.endsWith('/api') ? this.baseUrl : `${this.baseUrl}/api`;
-    }
+    // Always derive the API URL from the current window location for WebContainer compatibility
+    const currentOrigin = window.location.origin;
+    // Replace the frontend port (5173) with the backend port (3000)
+    const backendOrigin = currentOrigin.replace(':5173', ':3000');
+    this.baseUrl = `${backendOrigin}/api`;
     
     console.log('🔗 API Service initialized with base URL:', this.baseUrl);
   }

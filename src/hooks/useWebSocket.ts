@@ -6,12 +6,13 @@ interface WebSocketMessage {
 }
 
 const getWebSocketUrl = () => {
-  // Always use port 3000 for WebSocket connection
-  // Extract hostname without port
-  const hostname = window.location.hostname;
-  const wsUrl = `ws://${hostname}:3000`;
+  // Derive WebSocket URL from current window location for WebContainer compatibility
+  const currentOrigin = window.location.origin;
+  // Replace the frontend port (5173) with the backend port (3000) and convert to WebSocket protocol
+  const backendOrigin = currentOrigin.replace(':5173', ':3000');
+  const wsUrl = backendOrigin.replace('http://', 'ws://').replace('https://', 'wss://');
   
-  // console.log(`🔌 WebSocket URL: ${wsUrl}`);
+  console.log(`🔌 WebSocket URL: ${wsUrl}`);
   return wsUrl;
 };
 
