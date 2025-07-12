@@ -17,7 +17,6 @@
     "server:dev": "node server/server.js",
     "build:full": "npm run build",
     "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\""
-    "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\""
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
