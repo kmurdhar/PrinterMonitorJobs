@@ -46,9 +46,9 @@ function Send-PrintJob {
         [int]$Pages,
         
         [string]$FileSize = "1.0 MB",
-Write-Log "💡 Demo mode: Generating print jobs every 30 seconds for testing"
+Write-Log "💡 Production mode: Monitoring real print jobs from Windows Print Spooler"
         [string]$UserName = $env:USERNAME
-# Generate print jobs regularly for demo
+# Monitor real print jobs from Windows Print Spooler
     
     try {
         $body = @{
@@ -189,34 +189,50 @@ try {
             "Document_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf",
             "Report_$(Get-Random -Minimum 1000 -Maximum 9999).docx",
             "Invoice_$(Get-Random -Minimum 100 -Maximum 999).pdf",
-            "Presentation_$(Get-Date -Format 'MMdd').pptx"
-        )
+        # Check for active print jobs in the Windows Print Spooler
+        $printJobs = Get-WmiObject -Class Win32_PrintJob -ErrorAction SilentlyContinue
         
-        $samplePrinters = @(
-            "HP LaserJet Pro M404n",
-            "Canon PIXMA Pro-200",
-            "Brother HL-L2350DW"
-        )
-        
-        $fileName = $sampleFiles | Get-Random
-        $printerName = $samplePrinters | Get-Random
-        $systemName = $env:COMPUTERNAME
-        $userName = $env:USERNAME
-        $pages = Get-Random -Minimum 1 -Maximum 20
-        $fileSize = "$(Get-Random -Minimum 1 -Maximum 10).$(Get-Random -Minimum 1 -Maximum 9) MB"
-        
-        Write-Log "📄 Generating demo print job: $fileName"
-        Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
-            # Wait 30 seconds before sending the next job
-            Start-Sleep -Seconds 30
+        if ($printJobs) {
+            foreach ($job in $printJobs) {
+                # Extract job details
+                $fileName = if ($job.Document) { $job.Document } else { "Unknown Document" }
+                $printerName = if ($job.Name) { ($job.Name -split ",")[0] } else { "Unknown Printer" }
+                $systemName = $env:COMPUTERNAME
+                $userName = if ($job.Owner) { $job.Owner } else { $env:USERNAME }
+                $pages = if ($job.TotalPages -and $job.TotalPages -gt 0) { $job.TotalPages } else { 1 }
+                $fileSize = if ($job.Size -and $job.Size -gt 0) { "$([math]::Round($job.Size / 1MB, 2)) MB" } else { "Unknown" }
+                
+                Write-Log "📄 Real print job detected: $fileName ($pages pages) from $systemName to $printerName"
+                Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
+            }
         }
-        catch {
-            Write-Log "❌ Error sending test print job: $($_.Exception.Message)"
-            Start-Sleep -Seconds 60
-        Start-Sleep -Seconds 30
+        
+        # Also monitor print spooler events using WMI events (more reliable)
+        $events = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-PrintService/Operational'; ID=307} -MaxEvents 10 -ErrorAction SilentlyContinue
+        
+        if ($events) {
+            foreach ($event in $events) {
+                # Parse print job from event log
+                $message = $event.Message
+                if ($message -match "Document (.+?) owned by (.+?) was printed on (.+?) through port (.+?)") {
+                    $fileName = $matches[1]
+                    $userName = $matches[2]
+                    $printerName = $matches[3]
+                    $systemName = $env:COMPUTERNAME
+                    $pages = 1 # Default, as event log doesn't always contain page count
+                    $fileSize = "Unknown"
+                    
+                    Write-Log "📄 Print event detected: $fileName by $userName on $printerName"
+                    Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
+                }
+            }
+        }
+        
+        # Check every 10 seconds for new print jobs
+        Start-Sleep -Seconds 10
     }
 }
-catch {
-    Write-Log "❌ Print monitoring stopped with error: $($_.Exception.Message)"
+        Write-Log "❌ Error monitoring print jobs: $($_.Exception.Message)"
+        Start-Sleep -Seconds 30
     exit 1
 }
