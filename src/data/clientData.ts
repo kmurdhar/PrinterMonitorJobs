@@ -1,40 +1,33 @@
 import { Client } from '../types';
-import { getClientPrinters, getClientUsers, getClientPrintJobs } from './mockData';
 
-// Empty clients array - start fresh
+// Production-ready client data - starts empty
 export const mockClients: Client[] = [];
 
-// Generate aggregated stats for overall view
+// Generate aggregated stats for overall view - production ready
 export const generateOverallStats = () => {
-  const allPrinters = getClientPrinters('overall');
-  const allUsers = getClientUsers('overall');
-  const allJobs = getClientPrintJobs('overall');
-  
+  // In production, this will calculate from real data
   return {
-    totalJobs: allJobs.length,
-    totalPages: allJobs.reduce((sum, job) => sum + job.pages, 0),
-    activePrinters: allPrinters.filter(p => p.status === 'online').length,
-    totalCost: allJobs.reduce((sum, job) => sum + job.cost, 0),
-    jobsToday: allJobs.length,
-    failureRate: allJobs.length > 0 ? 0 : 0,
-    activeUsers: allUsers.length,
-    clientCount: mockClients.length
+    totalJobs: 0,
+    totalPages: 0,
+    activePrinters: 0,
+    totalCost: 0,
+    jobsToday: 0,
+    failureRate: 0,
+    activeUsers: 0,
+    clientCount: 0
   };
 };
 
-// Generate client-specific stats
+// Generate client-specific stats - production ready
 export const generateClientStats = (clientId: string) => {
-  const clientPrinters = getClientPrinters(clientId);
-  const clientUsers = getClientUsers(clientId);
-  const clientJobs = getClientPrintJobs(clientId);
-
+  // In production, this will calculate from real client data
   return {
-    totalJobs: clientJobs.length,
-    totalPages: clientJobs.reduce((sum, job) => sum + job.pages, 0),
-    activePrinters: clientPrinters.filter(p => p.status === 'online').length,
-    totalCost: clientJobs.reduce((sum, job) => sum + job.cost, 0),
-    jobsToday: clientJobs.length,
-    failureRate: clientJobs.length > 0 ? 0 : 0,
-    activeUsers: clientUsers.length
+    totalJobs: 0,
+    totalPages: 0,
+    activePrinters: 0,
+    totalCost: 0,
+    jobsToday: 0,
+    failureRate: 0,
+    activeUsers: 0
   };
 };

@@ -54,98 +54,9 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   };
 
   const simulatePrintJob = () => {
-    const sampleJobs = [
-      {
-        fileName: `Financial_Report_${new Date().toISOString().slice(0,10)}.pdf`,
-        systemName: `${selectedClient}-FINANCE-PC-01`,
-        printer: 'HP LaserJet Pro M404n',
-        pages: 15,
-        department: 'Finance'
-      },
-      {
-        fileName: `Marketing_Proposal_${new Date().toISOString().slice(0,10)}.docx`,
-        systemName: `${selectedClient}-MARKETING-LAPTOP-03`,
-        printer: 'Canon PIXMA Pro-200',
-        pages: 8,
-        department: 'Marketing'
-      },
-      {
-        fileName: `Employee_Handbook_${new Date().toISOString().slice(0,10)}.pdf`,
-        systemName: `${selectedClient}-HR-WORKSTATION-02`,
-        printer: 'Brother HL-L2350DW',
-        pages: 42,
-        department: 'HR'
-      },
-      {
-        fileName: 'Project_Timeline.xlsx',
-        systemName: 'OPERATIONS-PC-05',
-        printer: 'HP-LaserJet-Pro-01',
-        pages: 3,
-        department: 'Operations'
-      },
-      {
-        fileName: 'Invoice_Template.pdf',
-        systemName: 'ADMIN-LAPTOP-01',
-        printer: 'Canon-PIXMA-02',
-        pages: 2,
-        department: 'Administration'
-      },
-      {
-        fileName: 'IT_Security_Policy.pdf',
-        systemName: 'IT-DESKTOP-07',
-        printer: 'Brother-HL-L2350DW-03',
-        pages: 12,
-        department: 'IT'
-      },
-      {
-        fileName: 'Sales_Presentation.pptx',
-        systemName: 'SALES-LAPTOP-04',
-        printer: 'Canon-PIXMA-02',
-        pages: 25,
-        department: 'Sales'
-      }
-    ];
-
-    const randomJob = sampleJobs[Math.floor(Math.random() * sampleJobs.length)];
-    
-    const newJob: PrintJob = {
-      id: `job-${Date.now()}`,
-      fileName: randomJob.fileName || `Document_${Date.now()}.pdf`,
-      user: randomJob.systemName || 'Unknown', // Using system name as user identifier
-      systemName: randomJob.systemName || 'Unknown',
-      department: randomJob.department || 'General',
-      printer: randomJob.printer || 'Default Printer',
-      pages: randomJob.pages || 1,
-      status: Math.random() > 0.1 ? 'success' : 'failed', // 90% success rate
-      timestamp: new Date(),
-      cost: (randomJob.pages || 1) * 0.05, // $0.05 per page
-      fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
-      paperSize: 'A4',
-      colorMode: Math.random() > 0.7 ? 'color' : 'blackwhite',
-      clientId: selectedClient === 'overall' ? 'default-client' : selectedClient
-    };
-
-    if (onJobsChange) {
-      onJobsChange([newJob, ...jobs]);
-    }
-    
-    // Also try to send to server
-    try {
-      apiService.submitPrintJob({
-        clientId: selectedClient === 'overall' ? 'default-client' : selectedClient,
-        fileName: newJob.fileName,
-        systemName: newJob.systemName,
-        printerName: newJob.printer,
-        pages: newJob.pages,
-        fileSize: newJob.fileSize,
-        paperSize: newJob.paperSize,
-        colorMode: newJob.colorMode
-      });
-    } catch (error) {
-      console.error('Failed to send simulated job to server:', error);
-    }
-    
-    setIsSimulateModalOpen(false);
+    // Production: No simulation - only real print jobs
+    console.log('Production mode: Simulation disabled. Only real print jobs from Windows Print Listener will appear.');
+    alert('Production Mode: Simulation disabled.\n\nOnly real print jobs from client systems will appear in the dashboard.\n\nTo see print jobs:\n1. Install Windows Print Listener on client computers\n2. Print documents from those computers\n3. Jobs will automatically appear here');
   };
 
   const handleRefresh = async () => {
@@ -233,11 +144,11 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
           <div className="flex items-center justify-between">
             {jobs.length === 0 && (
             <button
-              onClick={handleTestPrint}
-              className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+              onClick={() => alert('Production Mode: Only real print jobs from client systems will appear.\n\nTo generate print jobs:\n1. Install Windows Print Listener on client computers\n2. Print documents from those computers\n3. Jobs will automatically appear here')}
+              className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
-              <Zap className="h-4 w-4" />
-              <span>Test Print Job</span>
+              <FileText className="h-4 w-4" />
+              <span>Production Mode - Real Jobs Only</span>
             </button>
             )}
             <div>
@@ -260,11 +171,11 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                 <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
               </button>
               <button
-                onClick={handleTestPrint}
-                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => alert('Production Mode: Only real print jobs from Windows Print Listener will appear.')}
+                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <Zap className="h-4 w-4" />
-                <span>Test Print</span>
+                <FileText className="h-4 w-4" />
+                <span>Production Mode</span>
               </button>
             </div>
             <div className="flex items-center space-x-4">

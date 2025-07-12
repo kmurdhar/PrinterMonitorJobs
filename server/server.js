@@ -25,9 +25,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // In-memory storage (in production, use a real database)
-let printJobs = [];
-let printers = [];
-let clients = [];
+let printJobs = []; // Production: Only real print jobs from clients
+let printers = []; // Production: Only auto-discovered or manually added printers
+let clients = []; // Production: Only onboarded clients
 
 // WebSocket connections for real-time updates
 const wsConnections = new Map();

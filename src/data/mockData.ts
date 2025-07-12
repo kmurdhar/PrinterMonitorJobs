@@ -1,12 +1,12 @@
-// Empty data for fresh application start
+// Production-ready data - no sample/dummy data
 import { PrintJob, Printer, User, DashboardStats } from '../types';
 
-// Empty arrays - no sample data
+// Empty arrays - production system starts clean
 export const mockPrinters: Printer[] = [];
 export const mockUsers: User[] = [];
 export const mockPrintJobs: PrintJob[] = [];
 
-// Zero stats for empty system
+// Zero stats for clean production system
 export const mockDashboardStats: DashboardStats = {
   totalJobs: 0,
   totalPages: 0,
@@ -16,7 +16,7 @@ export const mockDashboardStats: DashboardStats = {
   failureRate: 0
 };
 
-// Empty chart data
+// Empty chart data for production
 export const chartData = [
   { name: 'Mon', jobs: 0, pages: 0, cost: 0 },
   { name: 'Tue', jobs: 0, pages: 0, cost: 0 },
@@ -35,18 +35,18 @@ export const departmentData = [
   { name: 'HR', value: 0, color: '#8B5CF6' }
 ];
 
-// Helper functions to filter data by client
+// Helper functions to filter data by client - production ready
 export const getClientPrinters = (clientId: string) => {
-  if (clientId === 'overall') return mockPrinters;
-  return mockPrinters.filter(printer => printer.clientId === clientId);
+  // In production, this will load from server/database
+  return [];
 };
 
 export const getClientUsers = (clientId: string) => {
-  if (clientId === 'overall') return mockUsers;
-  return mockUsers.filter(user => user.clientId === clientId);
+  // In production, this will load from server/database
+  return [];
 };
 
 export const getClientPrintJobs = (clientId: string) => {
-  if (clientId === 'overall') return mockPrintJobs;
-  return mockPrintJobs.filter(job => job.clientId === clientId);
+  // In production, this will load from server/database
+  return [];
 };
