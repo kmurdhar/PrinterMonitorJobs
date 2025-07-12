@@ -234,7 +234,8 @@ app.get('/api/websocket/status', (req, res) => {
 // Print job submission endpoint (called by Windows Print Listener)
 app.post('/api/print-jobs', (req, res) => {
   try {
-    console.log('📄 Print job submission received:', JSON.stringify(req.body));
+    console.log('📄 Print job submission received from client:', req.body.clientId);
+    console.log('📄 Full request body:', JSON.stringify(req.body, null, 2));
     const {
       clientId,
       apiKey,
@@ -268,7 +269,7 @@ app.post('/api/print-jobs', (req, res) => {
 
     // Ensure clientId is properly set and not overridden
     const actualClientId = clientId || 'default-client';
-    console.log(`🔍 Processing job for client: ${actualClientId}`);
+    console.log(`🔍 Processing job for client: ${actualClientId} (original: ${clientId})`);
 
     // Auto-discover printer
     const printer = autoDiscoverPrinter(printerName, actualClientId);
@@ -301,7 +302,8 @@ app.post('/api/print-jobs', (req, res) => {
     // Store the print job
     printJobs.push(printJob);
 
-    console.log(`✅ Print job stored for client ${actualClientId}. Total jobs: ${printJobs.length}. Job ID: ${printJob.id}`);
+    console.log(`✅ Print job stored in memory for client ${actualClientId}. Total jobs: ${printJobs.length}`);
+    console.log(`📋 Job details: ${printJob.fileName} from ${printJob.systemName} (${printJob.pages} pages)`);
 
     // Broadcast real-time update
     broadcast({
@@ -335,28 +337,29 @@ app.post('/api/print-jobs', (req, res) => {
 app.get('/api/print-jobs', (req, res) => {
   const { clientId, limit = 1000 } = req.query;
   
-  console.log(`📋 API request for print jobs - clientId: ${clientId}, limit: ${limit}`);
+  console.log(`📋 API request for print jobs - requested clientId: "${clientId}", limit: ${limit}`);
   console.log(`📋 Total jobs in memory: ${printJobs.length}`);
   
   // Log all jobs for debugging
   if (printJobs.length > 0) {
-    console.log('📋 Sample jobs in memory:', printJobs.slice(0, 3).map(job => ({
+    console.log('📋 All jobs in memory with clientIds:', printJobs.map(job => ({
       id: job.id,
       fileName: job.fileName,
       clientId: job.clientId,
-      timestamp: job.timestamp
+      systemName: job.systemName
     })));
   }
   
   let jobs = printJobs;
   if (clientId && clientId !== 'overall') {
-    // Match jobs for this client or test jobs
-    jobs = printJobs.filter(job => 
-      job.clientId === clientId || 
-      job.clientId === 'test-client' || 
-      job.clientId === 'default-client'
-    );
-    console.log(`📋 Filtered jobs for client ${clientId}: found ${jobs.length} jobs`);
+    // Exact match for client ID
+    jobs = printJobs.filter(job => job.clientId === clientId);
+    console.log(`📋 Filtered jobs for client "${clientId}": found ${jobs.length} jobs`);
+    
+    if (jobs.length === 0) {
+      console.log(`📋 No jobs found for client "${clientId}". Available client IDs:`, 
+        [...new Set(printJobs.map(job => job.clientId))]);
+    }
   } else {
     console.log(`📋 No client filter applied, returning all ${jobs.length} jobs`);
   }
@@ -587,6 +590,29 @@ app.post('/api/debug/test-print/:clientId', (req, res) => {
     success: true,
     message: 'Test print job created',
     job: testJob
+  });
+});
+
+// Debug endpoint to show all data for troubleshooting
+app.get('/api/debug/all-data', (req, res) => {
+  res.json({
+    totalJobs: printJobs.length,
+    totalPrinters: printers.length,
+    totalClients: clients.length,
+    allJobs: printJobs.map(job => ({
+      id: job.id,
+      fileName: job.fileName,
+      clientId: job.clientId,
+      systemName: job.systemName,
+      timestamp: job.timestamp
+    })),
+    allPrinters: printers.map(printer => ({
+      id: printer.id,
+      name: printer.name,
+      clientId: printer.clientId
+    })),
+    uniqueClientIds: [...new Set(printJobs.map(job => job.clientId))],
+    serverTime: new Date().toISOString()
   });
 });
 
