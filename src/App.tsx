@@ -178,16 +178,14 @@ function App() {
           localStorage.setItem('printJobs', JSON.stringify(formattedJobs));
         } else {
           console.log('📄 No print jobs found on server for client:', selectedClient);
-          // If no jobs found, try to simulate a test print job
-          if (selectedClient !== 'overall') {
-            try {
-              console.log('🧪 No jobs found, triggering test print job');
-              await apiService.triggerTestPrint(selectedClient);
-              console.log('✅ Test print job triggered');
-            } catch (error) {
-              console.error('❌ Failed to trigger test print job:', error);
-            }
-          }
+        }
+
+        // Load stats from server to get accurate counts
+        try {
+          const serverStats = await apiService.getStats(clientIdParam);
+          console.log('📊 Loaded stats from server:', serverStats);
+        } catch (error) {
+          console.error('❌ Failed to load stats:', error);
         }
 
         // Load printers from server

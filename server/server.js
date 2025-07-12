@@ -266,8 +266,12 @@ app.post('/api/print-jobs', (req, res) => {
       });
     }
 
+    // Ensure clientId is properly set and not overridden
+    const actualClientId = clientId || 'default-client';
+    console.log(`🔍 Processing job for client: ${actualClientId}`);
+
     // Auto-discover printer
-    const printer = autoDiscoverPrinter(printerName, clientId);
+    const printer = autoDiscoverPrinter(printerName, actualClientId);
 
     // Detect department from system name
     const department = detectDepartment(systemName);
@@ -291,29 +295,31 @@ app.post('/api/print-jobs', (req, res) => {
       fileSize: fileSize || '1.2 MB',
       paperSize,
       colorMode,
-      clientId
+      clientId: actualClientId
     };
 
     // Store the print job
     printJobs.push(printJob);
 
-    console.log(`✅ Print job stored in memory. Total jobs: ${printJobs.length}. Job ID: ${printJob.id}`);
+    console.log(`✅ Print job stored for client ${actualClientId}. Total jobs: ${printJobs.length}. Job ID: ${printJob.id}`);
 
     // Broadcast real-time update
     broadcast({
       type: 'new_print_job',
       job: printJob,
       printer: printer,
+      clientId: actualClientId,
       timestamp: new Date().toISOString()
     });
 
-    console.log(`✅ Print job captured: ${fileName} from ${systemName} (Client: ${clientId})`);
+    console.log(`✅ Print job captured: ${fileName} from ${systemName} (Client: ${actualClientId})`);
 
     res.json({
       success: true,
       jobId: printJob.id,
       message: 'Print job recorded successfully',
-      cost: cost.toFixed(2)
+      cost: cost.toFixed(2),
+      clientId: actualClientId
     });
 
   } catch (error) {
@@ -409,18 +415,22 @@ app.post('/api/clients', (req, res) => {
 app.get('/api/stats', (req, res) => {
   const { clientId } = req.query;
   
+  console.log(`📊 Stats requested for client: ${clientId}`);
+  
   let jobs = printJobs;
   let clientPrinters = printers;
   
   if (clientId && clientId !== 'overall') {
     jobs = printJobs.filter(job => job.clientId === clientId);
     clientPrinters = printers.filter(printer => printer.clientId === clientId);
+    console.log(`📊 Filtered stats for ${clientId}: ${jobs.length} jobs, ${clientPrinters.length} printers`);
   }
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
   const jobsToday = jobs.filter(job => new Date(job.timestamp) >= today);
+  console.log(`📊 Jobs today for ${clientId}: ${jobsToday.length}`);
   
   const stats = {
     totalJobs: jobs.length,
@@ -433,6 +443,7 @@ app.get('/api/stats', (req, res) => {
     clientCount: clientId === 'overall' ? clients.length : undefined
   };
   
+  console.log(`📊 Final stats for ${clientId}:`, stats);
   res.json(stats);
 });
 
