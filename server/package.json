@@ -1,25 +1,21 @@
 {
-  "name": "printmonitor-server",
+  "name": "printer-monitor-server",
   "version": "1.0.0",
-  "description": "PrintMonitor Backend API Server",
-  "main": "server.js",
+  "description": "Backend server for printer monitoring system",
   "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "build": "echo 'Server does not require a build step - ready to run with npm start'"
+    "dev": "node server.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.3",
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
+    "body-parser": "^1.20.2",
     "uuid": "^9.0.1",
-    "ws": "^8.18.3"
+    "ws": "^8.14.2"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.0"
   }
 }
