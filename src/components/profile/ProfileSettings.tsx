@@ -19,9 +19,12 @@ import {
   Eye,
   EyeOff,
   Check,
-  X
+  X,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { clearAllData } from '../../utils/clearData';
 
 const ProfileSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -324,6 +327,36 @@ const ProfileSettings: React.FC = () => {
               <input type="checkbox" className="sr-only peer" defaultChecked />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Data Management</h3>
+        
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-red-900">Clear All Application Data</h4>
+                <p className="text-sm text-red-800 mt-1">
+                  This will permanently delete all clients, print jobs, printers, users, and settings. 
+                  This action cannot be undone.
+                </p>
+                <button
+                  onClick={() => {
+                    if (window.confirm('⚠️ This will clear ALL application data including clients, print jobs, and settings. This action cannot be undone. Are you sure?')) {
+                      clearAllData();
+                    }
+                  }}
+                  className="inline-flex items-center space-x-2 mt-3 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Clear All Data</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
