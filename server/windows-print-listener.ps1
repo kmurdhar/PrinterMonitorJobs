@@ -46,9 +46,9 @@ function Send-PrintJob {
         [int]$Pages,
         
         [string]$FileSize = "1.0 MB",
-        
+Write-Log "💡 Demo mode: Generating print jobs every 30 seconds for testing"
         [string]$UserName = $env:USERNAME
-    )
+# Generate print jobs regularly for demo
     
     try {
         $body = @{
@@ -184,40 +184,36 @@ try {
 
 # Start monitoring
 try {
-    # Send a test print job every 30 seconds
-    while ($true) {
-        try {
-            # Generate random data for the test print job
-            $sampleFiles = @(
-                "Document_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf",
-                "Report_$(Get-Random -Minimum 1000 -Maximum 9999).docx",
-                "Invoice_$(Get-Random -Minimum 100 -Maximum 999).pdf",
-                "Presentation_$(Get-Date -Format 'MMdd').pptx"
-            )
-            
-            $samplePrinters = @(
-                "HP LaserJet Pro M404n",
-                "Canon PIXMA Pro-200",
-                "Brother HL-L2350DW"
-            )
-            
-            $fileName = $sampleFiles | Get-Random
-            $printerName = $samplePrinters | Get-Random
-            $systemName = "$ClientId-$env:COMPUTERNAME"
-            $userName = $env:USERNAME
-            $pages = Get-Random -Minimum 1 -Maximum 10
-            $fileSize = "$(Get-Random -Minimum 1 -Maximum 5).$(Get-Random -Minimum 1 -Maximum 9) MB"
-            
-            Write-Log "📄 Sending test print job: $fileName"
-            Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
-            
+        # Generate a print job every cycle for demo
+        $sampleFiles = @(
+            "Document_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf",
+            "Report_$(Get-Random -Minimum 1000 -Maximum 9999).docx",
+            "Invoice_$(Get-Random -Minimum 100 -Maximum 999).pdf",
+            "Presentation_$(Get-Date -Format 'MMdd').pptx"
+        )
+        
+        $samplePrinters = @(
+            "HP LaserJet Pro M404n",
+            "Canon PIXMA Pro-200",
+            "Brother HL-L2350DW"
+        )
+        
+        $fileName = $sampleFiles | Get-Random
+        $printerName = $samplePrinters | Get-Random
+        $systemName = $env:COMPUTERNAME
+        $userName = $env:USERNAME
+        $pages = Get-Random -Minimum 1 -Maximum 20
+        $fileSize = "$(Get-Random -Minimum 1 -Maximum 10).$(Get-Random -Minimum 1 -Maximum 9) MB"
+        
+        Write-Log "📄 Generating demo print job: $fileName"
+        Send-PrintJob -FileName $fileName -SystemName $systemName -PrinterName $printerName -Pages $pages -FileSize $fileSize -UserName $userName
             # Wait 30 seconds before sending the next job
             Start-Sleep -Seconds 30
         }
         catch {
             Write-Log "❌ Error sending test print job: $($_.Exception.Message)"
             Start-Sleep -Seconds 60
-        }
+        Start-Sleep -Seconds 30
     }
 }
 catch {
