@@ -15,7 +15,7 @@
     "fresh-install": "rm -rf node_modules package-lock.json && npm install",
     "server": "node server/server.js",
     "server:dev": "node server/server.js",
-    "build:full": "npm run build"
+    "build:full": "npm run build",
     "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\""
   },
   "dependencies": {
