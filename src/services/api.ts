@@ -100,14 +100,7 @@ class ApiService {
   }
 
   // Test endpoints
-  async simulatePrintJob(clientId?: string) {
-    return this.request('/test/simulate-print', {
-      method: 'POST', 
-      body: JSON.stringify({ 
-        clientId: clientId || 'test-client'
-      }),
-    });
-  }
+  // PRODUCTION: No simulation endpoints - only real print jobs
 
   // Debug endpoint
   async getClientDebugInfo(clientId: string) {
@@ -115,11 +108,7 @@ class ApiService {
   }
 
   // Manual test print job
-  async triggerTestPrint(clientId: string) {
-    return this.request(`/debug/test-print/${clientId}`, {
-      method: 'POST',
-    });
-  }
+  // PRODUCTION: No test print - only real print jobs from Windows Print Listener
 }
 
 export const apiService = new ApiService();

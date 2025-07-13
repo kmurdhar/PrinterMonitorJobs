@@ -53,11 +53,7 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
     }
   };
 
-  const simulatePrintJob = () => {
-    // Production: No simulation - only real print jobs
-    console.log('Production mode: Simulation disabled. Only real print jobs from Windows Print Listener will appear.');
-    alert('Production Mode: Simulation disabled.\n\nOnly real print jobs from client systems will appear in the dashboard.\n\nTo see print jobs:\n1. Install Windows Print Listener on client computers\n2. Print documents from those computers\n3. Jobs will automatically appear here');
-  };
+  // PRODUCTION: No simulation functions - only real print jobs
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -86,18 +82,8 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
   };
 
   const handleTestPrint = async () => {
-    try {
-      console.log('🧪 Triggering test print for client:', selectedClient);
-      const clientIdParam = selectedClient === 'overall' ? 'test-client' : selectedClient;
-      console.log('🧪 Using client ID for test:', clientIdParam);
-      const result = await apiService.triggerTestPrint(clientIdParam);
-      console.log('✅ Test print triggered:', result);
-      
-      // Refresh after test print
-      setTimeout(handleRefresh, 2000);
-    } catch (error) {
-      console.error('❌ Error triggering test print:', error);
-    }
+    // PRODUCTION: No test print - only real print jobs from Windows Print Listener
+    alert('PRODUCTION MODE\n\nThis system only accepts real print jobs from Windows Print Listener.\n\nTo see print jobs:\n1. Install Windows Print Listener on client computers\n2. Users print documents normally\n3. Jobs automatically appear here');
   };
 
   return (
@@ -143,13 +129,12 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {jobs.length === 0 && (
-            <button
-              onClick={() => alert('Production Mode: Only real print jobs from client systems will appear.\n\nTo generate print jobs:\n1. Install Windows Print Listener on client computers\n2. Print documents from those computers\n3. Jobs will automatically appear here')}
-              className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Production Mode - Real Jobs Only</span>
-            </button>
+            <div className="bg-green-50 border border-green-200 rounded-lg px-6 py-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-green-800">PRODUCTION MODE - Real Print Jobs Only</span>
+              </div>
+            </div>
             )}
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Print Job History</h2>
@@ -171,11 +156,11 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                 <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
               </button>
               <button
-                onClick={() => alert('Production Mode: Only real print jobs from Windows Print Listener will appear.')}
-                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={handleTestPrint}
+                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
               >
                 <FileText className="h-4 w-4" />
-                <span>Production Mode</span>
+                <span>Production Ready</span>
               </button>
             </div>
             <div className="flex items-center space-x-4">

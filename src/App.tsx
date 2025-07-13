@@ -11,12 +11,8 @@ import OnboardingDashboard from './components/onboarding/OnboardingDashboard';
 import PricingDashboard from './components/pricing/PricingDashboard';
 import ProfileSettings from './components/profile/ProfileSettings';
 import { 
-  mockDashboardStats, 
-  mockPrinters as initialPrinters,
-  mockUsers as initialUsers,
-  mockPrintJobs as initialPrintJobs
+  // No mock data imports - production ready
 } from './data/mockData';
-import { generateOverallStats, generateClientStats } from './data/clientData';
 import { Printer, User, PrintJob, Client } from './types';
 import { apiService } from './services/api';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -78,8 +74,9 @@ function App() {
     }
   }, []);
 
-  const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  // Production: Start with empty arrays - no dummy data
+  const [printers, setPrinters] = useState<Printer[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   
   // Load print jobs from localStorage and API
   const [printJobs, setPrintJobs] = useState<PrintJob[]>(() => {
@@ -93,10 +90,10 @@ function App() {
         }));
       } catch (error) {
         console.error('Error parsing saved print jobs:', error);
-        return initialPrintJobs;
+        return []; // Production: No dummy data
       }
     }
-    return initialPrintJobs;
+    return []; // Production: No dummy data
   });
 
   // WebSocket connection for real-time updates
@@ -252,9 +249,27 @@ function App() {
   const clientPrintJobs = getClientPrintJobs(selectedClient);
 
   // Get appropriate stats based on view
-  const currentStats = isOverallView 
-    ? generateOverallStats() 
-    : generateClientStats(selectedClient);
+  // Production: Calculate real stats from actual data
+  const currentStats = React.useMemo(() => {
+    const relevantJobs = isOverallView ? printJobs : clientPrintJobs;
+    const relevantPrinters = isOverallView ? printers : clientPrinters;
+    const relevantUsers = isOverallView ? users : clientUsers;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const jobsToday = relevantJobs.filter(job => new Date(job.timestamp) >= today);
+    
+    return {
+      totalJobs: relevantJobs.length,
+      totalPages: relevantJobs.reduce((sum, job) => sum + job.pages, 0),
+      activePrinters: relevantPrinters.filter(p => p.status === 'online').length,
+      totalCost: relevantJobs.reduce((sum, job) => sum + job.cost, 0),
+      jobsToday: jobsToday.length,
+      failureRate: relevantJobs.length > 0 ? (relevantJobs.filter(j => j.status === 'failed').length / relevantJobs.length) * 100 : 0,
+      activeUsers: [...new Set(relevantJobs.map(job => job.systemName))].length,
+      clientCount: isOverallView ? clients.length : undefined
+    };
+  }, [printJobs, printers, users, clients, isOverallView, clientPrintJobs, clientPrinters, clientUsers]);
 
   // Handler functions for CRUD operations
   const handlePrintersChange = (updatedPrinters: Printer[]) => {

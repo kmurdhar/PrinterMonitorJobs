@@ -1,12 +1,12 @@
-// Production-ready data - no sample/dummy data
+// Production-ready data - NO dummy/sample data
 import { PrintJob, Printer, User, DashboardStats } from '../types';
 
-// Empty arrays - production system starts clean
+// PRODUCTION: All arrays start empty - no dummy data
 export const mockPrinters: Printer[] = [];
 export const mockUsers: User[] = [];
 export const mockPrintJobs: PrintJob[] = [];
 
-// Zero stats for clean production system
+// PRODUCTION: Zero stats for clean system
 export const mockDashboardStats: DashboardStats = {
   totalJobs: 0,
   totalPages: 0,
@@ -16,7 +16,7 @@ export const mockDashboardStats: DashboardStats = {
   failureRate: 0
 };
 
-// Empty chart data for production
+// PRODUCTION: Empty chart data
 export const chartData = [
   { name: 'Mon', jobs: 0, pages: 0, cost: 0 },
   { name: 'Tue', jobs: 0, pages: 0, cost: 0 },
@@ -35,18 +35,4 @@ export const departmentData = [
   { name: 'HR', value: 0, color: '#8B5CF6' }
 ];
 
-// Helper functions to filter data by client - production ready
-export const getClientPrinters = (clientId: string) => {
-  // In production, this will load from server/database
-  return [];
-};
-
-export const getClientUsers = (clientId: string) => {
-  // In production, this will load from server/database
-  return [];
-};
-
-export const getClientPrintJobs = (clientId: string) => {
-  // In production, this will load from server/database
-  return [];
-};
+// PRODUCTION: No helper functions that return dummy data

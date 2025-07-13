@@ -25,9 +25,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // In-memory storage (in production, use a real database)
-let printJobs = []; // Production: Only real print jobs from clients
-let printers = []; // Production: Only auto-discovered or manually added printers
-let clients = []; // Production: Only onboarded clients
+let printJobs = []; // PRODUCTION: Only real print jobs from Windows Print Listener
+let printers = []; // PRODUCTION: Only auto-discovered printers from real print jobs
+let clients = []; // PRODUCTION: Only real onboarded clients
 
 // WebSocket connections for real-time updates
 const wsConnections = new Map();
@@ -451,90 +451,7 @@ app.get('/api/stats', (req, res) => {
 });
 
 // Test endpoint to simulate print jobs
-app.post('/api/test/simulate-print', (req, res) => {
-  const { clientId = 'test-client' } = req.body;
-  
-  console.log(`🧪 Simulating print job for client: ${clientId}`);
-  
-  const sampleJobs = [
-    {
-      fileName: 'Financial_Report_Q4.pdf',
-      systemName: 'FINANCE-PC-01',
-      printerName: 'HP-LaserJet-Pro-01',
-      pages: 15,
-      colorMode: 'blackwhite'
-    },
-    {
-      fileName: 'Marketing_Proposal.docx',
-      systemName: 'MARKETING-LAPTOP-03',
-      printerName: 'Canon-PIXMA-02',
-      pages: 8,
-      colorMode: 'color'
-    },
-    {
-      fileName: 'Employee_Handbook.pdf',
-      systemName: 'HR-WORKSTATION-02',
-      printerName: 'Brother-HL-L2350DW-03',
-      pages: 42,
-      colorMode: 'blackwhite'
-    }
-  ];
-  
-  const randomJob = sampleJobs[Math.floor(Math.random() * sampleJobs.length)];
-  
-  // Make sure we use the client ID from the request
-  const jobClientId = clientId || 'test-client';
-  
-  // Auto-discover printer
-  const printer = autoDiscoverPrinter(randomJob.printerName, jobClientId);
-
-  // Detect department from system name
-  const department = detectDepartment(randomJob.systemName);
-
-  // Calculate cost
-  const costPerPage = randomJob.colorMode === 'color' ? 0.15 : 0.05;
-  const cost = randomJob.pages * costPerPage;
-
-  // Create print job
-  const printJob = {
-    id: `job-${uuidv4()}`,
-    fileName: randomJob.fileName,
-    user: randomJob.systemName,
-    systemName: randomJob.systemName,
-    department,
-    printer: randomJob.printerName,
-    pages: randomJob.pages,
-    status: Math.random() > 0.1 ? 'success' : 'failed',
-    timestamp: new Date(),
-    cost,
-    fileSize: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
-    paperSize: 'A4',
-    colorMode: randomJob.colorMode,
-    clientId: jobClientId
-  };
-
-  // Store the print job
-  printJobs.push(printJob);
-
-  // Broadcast real-time update
-  broadcast({
-    type: 'new_print_job',
-    job: printJob,
-    printer: printer,
-    timestamp: new Date().toISOString(),
-    clientId: jobClientId
-  });
-
-  console.log(`🎭 Simulated print job: ${printJob.fileName} from ${printJob.systemName} (Client: ${clientId})`);
-
-  res.json({
-    success: true,
-    jobId: printJob.id,
-    message: 'Print job simulated successfully',
-    cost: cost.toFixed(2),
-    job: printJob
-  });
-});
+// PRODUCTION: Simulation endpoint removed - only real print jobs accepted
 
 // Debug endpoint to check client connections
 app.get('/api/debug/client/:clientId', (req, res) => {
