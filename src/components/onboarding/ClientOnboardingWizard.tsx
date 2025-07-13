@@ -324,11 +324,12 @@ while (\\\$true) {
             Send-PrintJob -FileName \\\$fileName -SystemName \\\$systemName -PrinterName \\\$printerName -Pages \\\$pages -FileSize \\\$fileSize -UserName \\\$userName
         }
         
-        Start-Sleep -Seconds 30
+        # Check for real print jobs more frequently
+        Start-Sleep -Seconds 5
     }
     catch {
         Write-Log "❌ Error in monitoring loop: \\\$(\\\$_.Exception.Message)"
-        Start-Sleep -Seconds 60
+        Start-Sleep -Seconds 30
     }
 }
 "@
