@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "preview": "vite preview",
+    "server": "node server/server.js",
+    "full-stack": "concurrently \"npm run server\" \"npm run dev\""
     "server:dev": "node server/server.js",
     "start": "vite preview",
     "type-check": "tsc --noEmit",
