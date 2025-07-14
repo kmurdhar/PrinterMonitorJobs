@@ -40,240 +40,162 @@ New-Item -ItemType Directory -Path $logsPath -Force | Out-Null
 Write-Host "📋 Creating print listener script..."
 $listenerScript = "$servicePath\print-listener.ps1"
 
-# Create the print listener content as separate lines to avoid here-string issues
-$printListenerLines = @(
-    "# PrintMonitor Windows Print Listener",
-    "# Generated on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
-    "",
-    "param(",
-    "    [Parameter(Mandatory=`$true)]",
-    "    [string]`$ClientId,",
-    "    ",
-    "    [Parameter(Mandatory=`$true)]",
-    "    [string]`$ApiEndpoint,",
-    "    ",
-    "    [Parameter(Mandatory=`$true)]",
-    "    [string]`$ApiKey,",
-    "    ",
-    "    [string]`$LogPath = `"C:\PrintMonitor\logs\print-listener.log`"",
-    ")",
-    "",
-    "# Ensure log directory exists",
-    "`$logDir = Split-Path `$LogPath -Parent",
-    "if (!(Test-Path `$logDir)) {",
-    "    New-Item -ItemType Directory -Path `$logDir -Force",
-    "}",
-    "",
-    "# Logging function",
-    "function Write-Log {",
-    "    param([string]`$Message)",
-    "    `$timestamp = Get-Date -Format `"yyyy-MM-dd HH:mm:ss`"",
-    "    `$logMessage = `"[`$timestamp] `$Message`"",
-    "    Write-Host `$logMessage",
-    "    Add-Content -Path `$LogPath -Value `$logMessage",
-    "}",
-    "",
-    "Write-Log `"PrintMonitor Print Listener Starting...`"",
-    "Write-Log `"Client ID: `$ClientId`"",
-    "Write-Log `"API Endpoint: `$ApiEndpoint`"",
-    "Write-Log `"Computer: `$env:COMPUTERNAME`"",
-    "Write-Log `"User: `$env:USERNAME`"",
-    "",
-    "# Function to send print job data to server",
-    "function Send-PrintJob {",
-    "    param(",
-    "        [string]`$FileName,",
-    "        [string]`$SystemName,",
-    "        [string]`$PrinterName,",
-    "        [int]`$Pages,",
-    "        [string]`$FileSize,",
-    "        [string]`$UserName",
-    "    )",
-    "    ",
-    "    try {",
-    "        `$body = @{",
-    "            clientId = `$ClientId",
-    "            apiKey = `$ApiKey",
-    "            fileName = `$FileName",
-    "            systemName = `$SystemName",
-    "            printerName = `$PrinterName",
-    "            pages = `$Pages",
-    "            fileSize = `$FileSize",
-    "            paperSize = `"A4`"",
-    "            colorMode = `"blackwhite`"",
-    "            userName = `$UserName",
-    "        } | ConvertTo-Json",
-    "        ",
-    "        `$headers = @{",
-    "            'Content-Type' = 'application/json'",
-    "            'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'",
-    "        }",
-    "        ",
-    "        Write-Log `"📄 Sending print job: `$FileName (`$Pages pages) from `$SystemName to `$PrinterName`"",
-    "        ",
-    "        `$response = Invoke-RestMethod -Uri `"`$ApiEndpoint/print-jobs`" -Method POST -Body `$body -Headers `$headers -TimeoutSec 30",
-    "        ",
-    "        if (`$response.success) {",
-    "            Write-Log `"✅ Print job sent successfully. Job ID: $(`$response.jobId), Cost: $(`$response.cost)`"",
-    "        } else {",
-    "            Write-Log `"❌ Failed to send print job: $(`$response.message)`"",
-    "        }",
-    "    }",
-    "    catch {",
-    "        Write-Log `"❌ Error sending print job: $(`$_.Exception.Message)`"",
-    "    }",
-    "}",
-    "",
-    "# Test connection to server",
-    "try {",
-    "    Write-Log `"🔗 Testing connection to PrintMonitor server...`"",
-    "    `$healthCheck = Invoke-RestMethod -Uri `"`$ApiEndpoint/health`" -Method GET -TimeoutSec 10",
-    "    Write-Log `"✅ Server connection successful. Server status: $(`$healthCheck.status)`"",
-    "} catch {",
-    "    Write-Log `"❌ Failed to connect to PrintMonitor server: $(`$_.Exception.Message)`"",
-    "    Write-Log `"⚠️  Please check that the server is running and accessible at: `$ApiEndpoint`"",
-    "    exit 1",
-    "}",
-    "",
-    "# Send a test print job to verify the connection",
-    "try {",
-    "    Write-Log `"🧪 Sending test print job to verify connection...`"",
-    "    `$testJob = @{",
-    "        clientId = `$ClientId",
-    "        apiKey = `$ApiKey",
-    "        fileName = `"TEST_CONNECTION_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf`"",
-    "        systemName = `$env:COMPUTERNAME",
-    "        printerName = `"Test Printer Connection`"",
-    "        pages = 1",
-    "        fileSize = `"0.1 MB`"",
-    "        paperSize = `"A4`"",
-    "        colorMode = `"blackwhite`"",
-    "        userName = `$env:USERNAME",
-    "    } | ConvertTo-Json",
-    "    ",
-    "    `$headers = @{",
-    "        'Content-Type' = 'application/json'",
-    "        'User-Agent' = 'PrintMonitor-Windows-Listener/1.0'",
-    "    }",
-    "    ",
-    "    `$response = Invoke-RestMethod -Uri `"`$ApiEndpoint/print-jobs`" -Method POST -Body `$testJob -Headers `$headers -TimeoutSec 30",
-    "    ",
-    "    if (`$response.success) {",
-    "        Write-Log `"✅ Test print job sent successfully! Job ID: `$(`$response.jobId)`"",
-    "        Write-Log `"🎉 Connection verified - print monitoring is working!`"",
-    "    } else {",
-    "        Write-Log `"❌ Test print job failed: `$(`$response.message)`"",
-    "    }",
-    "} catch {",
-    "    Write-Log `"❌ Failed to send test print job: `$(`$_.Exception.Message)`"",
-    "    Write-Log `"⚠️  This may indicate a configuration issue`"",
-    "}",
-    "",
-    "# Monitor print jobs (simplified for demo)",
-    "Write-Log `"🔍 Starting print job monitoring...`"",
-    "Write-Log `"💡 Production mode: Monitoring real print jobs from Windows Print Spooler`"",
-    "",
-    "# Monitor real print jobs from Windows Print Spooler",
-    "while (`$true) {",
-    "    try {",
-    "        # Method 1: Check for active print jobs in the Windows Print Spooler",
-    "        `$printJobs = Get-WmiObject -Class Win32_PrintJob -ErrorAction SilentlyContinue",
-    "        ",
-    "        if (`$printJobs) {",
-    "            foreach (`$job in `$printJobs) {",
-    "                # Extract job details",
-    "                `$fileName = if (`$job.Document) { `$job.Document } else { `"Unknown Document`" }",
-    "                `$printerName = if (`$job.Name) { (`$job.Name -split `",`")[0] } else { `"Unknown Printer`" }",
-    "                `$systemName = `$env:COMPUTERNAME",
-    "                `$userName = if (`$job.Owner) { `$job.Owner } else { `$env:USERNAME }",
-    "                `$pages = if (`$job.TotalPages -and `$job.TotalPages -gt 0) { `$job.TotalPages } else { 1 }",
-    "                `$fileSize = if (`$job.Size -and `$job.Size -gt 0) { `"`$([math]::Round(`$job.Size / 1MB, 2)) MB`" } else { `"Unknown`" }",
-    "                ",
-    "                Write-Log `"📄 Real print job detected: `$fileName (`$pages pages) from `$systemName to `$printerName`"",
-    "                Send-PrintJob -FileName `$fileName -SystemName `$systemName -PrinterName `$printerName -Pages `$pages -FileSize `$fileSize -UserName `$userName",
-    "            }",
-    "        }",
-    "        ",
-    "        # Method 2: Monitor print spooler events using Event Log (more reliable)",
-    "        `$events = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-PrintService/Operational'; ID=307} -MaxEvents 10 -ErrorAction SilentlyContinue",
-    "        ",
-    "        if (`$events) {",
-    "            foreach (`$event in `$events) {",
-    "                # Parse print job from event log",
-    "                `$message = `$event.Message",
-    "                if (`$message -match `"Document (.+?) owned by (.+?) was printed on (.+?) through port (.+?)`") {",
-    "                    `$fileName = `$matches[1]",
-    "                    `$userName = `$matches[2]",
-    "                    `$printerName = `$matches[3]",
-    "                    `$systemName = `$env:COMPUTERNAME",
-    "                    `$pages = 1 # Default, as event log doesn't always contain page count",
-    "                    `$fileSize = `"Unknown`"",
-    "                    ",
-    "                    Write-Log `"📄 Print event detected: `$fileName by `$userName on `$printerName`"",
-    "                    Send-PrintJob -FileName `$fileName -SystemName `$systemName -PrinterName `$printerName -Pages `$pages -FileSize `$fileSize -UserName `$userName",
-    "                }",
-    "            }",
-    "        }",
-    "        ",
-    "        # Method 3: Monitor using PowerShell Get-PrintJob (Windows 8+)",
-    "        try {",
-    "            if (Get-Command Get-PrintJob -ErrorAction SilentlyContinue) {",
-    "                `$allPrintJobs = Get-PrintJob -ErrorAction SilentlyContinue",
-    "                foreach (`$job in `$allPrintJobs) {",
-    "                    `$fileName = if (`$job.DocumentName) { `$job.DocumentName } else { `"Unknown Document`" }",
-    "                    `$printerName = if (`$job.PrinterName) { `$job.PrinterName } else { `"Unknown Printer`" }",
-    "                    `$systemName = `$env:COMPUTERNAME",
-    "                    `$userName = if (`$job.UserName) { `$job.UserName } else { `$env:USERNAME }",
-    "                    `$pages = if (`$job.TotalPages -and `$job.TotalPages -gt 0) { `$job.TotalPages } else { 1 }",
-    "                    `$fileSize = if (`$job.Size -and `$job.Size -gt 0) { `"`$([math]::Round(`$job.Size / 1MB, 2)) MB`" } else { `"Unknown`" }",
-    "                    ",
-    "                    Write-Log `"📄 PowerShell print job detected: `$fileName (`$pages pages) from `$systemName to `$printerName`"",
-    "                    Send-PrintJob -FileName `$fileName -SystemName `$systemName -PrinterName `$printerName -Pages `$pages -FileSize `$fileSize -UserName `$userName",
-    "                }",
-    "            }",
-    "        } catch {",
-    "            # PowerShell print cmdlets not available",
-    "        }",
-    "        ",
-    "        # Method 3: Generate demo print jobs for testing (remove in production)",
-    "        if ((Get-Random -Minimum 1 -Maximum 100) -lt 30) { # 30% chance every loop for better demo",
-    "            `$sampleFiles = @(",
-    "                `"Document_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf`",",
-    "                `"Report_`$(Get-Random -Minimum 1000 -Maximum 9999).docx`",",
-    "                `"Invoice_`$(Get-Random -Minimum 100 -Maximum 999).pdf`",",
-    "                `"Presentation_`$(Get-Date -Format 'MMdd').pptx`"",
-    "            )",
-    "            ",
-    "            `$samplePrinters = @(",
-    "                `"HP LaserJet Pro M404n`",",
-    "                `"Canon PIXMA Pro-200`",", 
-    "                `"Brother HL-L2350DW`"",
-    "            )",
-    "            ",
-    "            `$fileName = `$sampleFiles | Get-Random",
-    "            `$printerName = `$samplePrinters | Get-Random",
-    "            `$systemName = `$env:COMPUTERNAME",
-    "            `$userName = `$env:USERNAME",
-    "            `$pages = Get-Random -Minimum 1 -Maximum 20",
-    "            `$fileSize = `"`$(Get-Random -Minimum 1 -Maximum 10).`$(Get-Random -Minimum 1 -Maximum 9) MB`"",
-    "            ",
-    "            Write-Log `"📄 Simulating print job for demo purposes`"",
-    "            Send-PrintJob -FileName `$fileName -SystemName `$systemName -PrinterName `$printerName -Pages `$pages -FileSize `$fileSize -UserName `$userName",
-    "        }",
-    "        ",
-    "        # Check every 5 seconds for new print jobs",
-    "        Start-Sleep -Seconds 5",
-    "    }",
-    "    catch {",
-    "        Write-Log `"❌ Error monitoring print jobs: `$(`$_.Exception.Message)`"",
-    "        Start-Sleep -Seconds 30",
-    "    }",
-    "}"
+# Copy the working print listener script
+$workingScript = "$PSScriptRoot\working-print-listener.ps1"
+if (Test-Path $workingScript) {
+    Copy-Item $workingScript $listenerScript -Force
+    Write-Host "✅ Copied working print listener script"
+} else {
+    Write-Host "❌ Working print listener script not found at: $workingScript"
+    Write-Host "💡 Creating basic print listener..."
+    
+    # Create a basic working print listener
+    $basicListener = @"
+# PrintMonitor Windows Print Listener - PRODUCTION VERSION
+param(
+    [Parameter(Mandatory=`$true)][string]`$ClientId,
+    [Parameter(Mandatory=`$true)][string]`$ApiEndpoint,
+    [Parameter(Mandatory=`$true)][string]`$ApiKey,
+    [string]`$LogPath = "C:\PrintMonitor\logs\print-listener.log"
 )
 
-# Join the lines and write to file
-$printListenerContent = $printListenerLines -join "`r`n"
-$printListenerContent | Out-File -FilePath $listenerScript -Encoding UTF8
+# Ensure log directory exists
+`$logDir = Split-Path `$LogPath -Parent
+if (!(Test-Path `$logDir)) { New-Item -ItemType Directory -Path `$logDir -Force | Out-Null }
+
+# Logging function
+function Write-Log {
+    param([string]`$Message)
+    `$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    `$logMessage = "[`$timestamp] `$Message"
+    Write-Host `$logMessage -ForegroundColor Green
+    try { Add-Content -Path `$LogPath -Value `$logMessage -ErrorAction SilentlyContinue } catch { }
+}
+
+Write-Log "=== PrintMonitor Print Listener Starting ==="
+Write-Log "Client ID: `$ClientId"
+Write-Log "API Endpoint: `$ApiEndpoint"
+Write-Log "Computer: `$env:COMPUTERNAME"
+Write-Log "User: `$env:USERNAME"
+
+# Function to send print job
+function Send-PrintJob {
+    param([string]`$FileName, [string]`$SystemName, [string]`$PrinterName, [int]`$Pages, [string]`$FileSize = "Unknown", [string]`$UserName = `$env:USERNAME)
+    
+    try {
+        `$body = @{
+            clientId = `$ClientId; apiKey = `$ApiKey; fileName = `$FileName; systemName = `$SystemName
+            printerName = `$PrinterName; pages = `$Pages; fileSize = `$FileSize; paperSize = "A4"
+            colorMode = "blackwhite"; userName = `$UserName
+        } | ConvertTo-Json
+        
+        `$headers = @{ 'Content-Type' = 'application/json'; 'User-Agent' = 'PrintMonitor-Windows-Listener/2.0' }
+        
+        Write-Log "📄 Sending: `$FileName (`$Pages pages) from `$SystemName to `$PrinterName"
+        `$response = Invoke-RestMethod -Uri "`$ApiEndpoint/print-jobs" -Method POST -Body `$body -Headers `$headers -TimeoutSec 30
+        
+        if (`$response.success) {
+            Write-Log "✅ Print job sent successfully! Job ID: `$(`$response.jobId)"
+            return `$true
+        } else {
+            Write-Log "❌ Server rejected: `$(`$response.message)"
+            return `$false
+        }
+    } catch {
+        Write-Log "❌ Error sending: `$(`$_.Exception.Message)"
+        return `$false
+    }
+}
+
+# Test connection
+try {
+    Write-Log "🔗 Testing server connection..."
+    `$health = Invoke-RestMethod -Uri "`$ApiEndpoint/health" -Method GET -TimeoutSec 10
+    Write-Log "✅ Server connected: `$(`$health.status)"
+} catch {
+    Write-Log "❌ Server connection failed: `$(`$_.Exception.Message)"
+    exit 1
+}
+
+# Send test job
+Write-Log "🧪 Sending test print job..."
+Send-PrintJob -FileName "TEST_CONNECTION_`$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf" -SystemName `$env:COMPUTERNAME -PrinterName "Test Connection Printer" -Pages 1 -FileSize "0.1 KB"
+
+# Main monitoring loop
+Write-Log "🚀 Starting print job monitoring..."
+`$loopCount = 0
+
+while (`$true) {
+    try {
+        `$loopCount++
+        Write-Log "🔄 Monitoring cycle #`$loopCount - `$(Get-Date -Format 'HH:mm:ss')"
+        
+        # Method 1: Windows Event Log
+        try {
+            `$events = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-PrintService/Operational'; ID=307; StartTime=(Get-Date).AddMinutes(-2)} -MaxEvents 50 -ErrorAction SilentlyContinue
+            if (`$events) {
+                Write-Log "📋 Found `$(`$events.Count) recent print events"
+                foreach (`$event in `$events) {
+                    `$message = `$event.Message
+                    if (`$message -match "Document\s+(.+?)\s+owned by\s+(.+?)\s+was printed on\s+(.+?)\s+through") {
+                        `$fileName = `$matches[1].Trim() -replace '"', ''
+                        `$userName = `$matches[2].Trim()
+                        `$printerName = `$matches[3].Trim() -replace '"', ''
+                        Write-Log "📄 Event: `$fileName by `$userName on `$printerName"
+                        Send-PrintJob -FileName `$fileName -SystemName `$env:COMPUTERNAME -PrinterName `$printerName -Pages 1 -UserName `$userName
+                    }
+                }
+            }
+        } catch { Write-Log "⚠️ Event log access failed: `$(`$_.Exception.Message)" }
+        
+        # Method 2: PowerShell Get-PrintJob
+        try {
+            if (Get-Command Get-PrintJob -ErrorAction SilentlyContinue) {
+                `$printJobs = Get-PrintJob -ErrorAction SilentlyContinue
+                if (`$printJobs) {
+                    Write-Log "📄 Found `$(`$printJobs.Count) active print jobs"
+                    foreach (`$job in `$printJobs) {
+                        `$fileName = if (`$job.DocumentName) { `$job.DocumentName } else { "Unknown Document" }
+                        `$printerName = if (`$job.PrinterName) { `$job.PrinterName } else { "Unknown Printer" }
+                        `$userName = if (`$job.UserName) { `$job.UserName } else { `$env:USERNAME }
+                        `$pages = if (`$job.TotalPages -and `$job.TotalPages -gt 0) { `$job.TotalPages } else { 1 }
+                        `$size = if (`$job.Size -and `$job.Size -gt 0) { "`$([math]::Round(`$job.Size / 1KB, 1)) KB" } else { "Unknown" }
+                        Write-Log "📄 Active: `$fileName (`$pages pages) on `$printerName"
+                        Send-PrintJob -FileName `$fileName -SystemName `$env:COMPUTERNAME -PrinterName `$printerName -Pages `$pages -FileSize `$size -UserName `$userName
+                    }
+                }
+            }
+        } catch { Write-Log "⚠️ Get-PrintJob failed: `$(`$_.Exception.Message)" }
+        
+        # Method 3: WMI Win32_PrintJob
+        try {
+            `$wmiJobs = Get-WmiObject -Class Win32_PrintJob -ErrorAction SilentlyContinue
+            if (`$wmiJobs) {
+                Write-Log "📄 Found `$(`$wmiJobs.Count) WMI print jobs"
+                foreach (`$job in `$wmiJobs) {
+                    `$fileName = if (`$job.Document) { `$job.Document } else { "Unknown Document" }
+                    `$printerName = if (`$job.Name) { (`$job.Name -split ",")[0] } else { "Unknown Printer" }
+                    `$userName = if (`$job.Owner) { `$job.Owner } else { `$env:USERNAME }
+                    `$pages = if (`$job.TotalPages -and `$job.TotalPages -gt 0) { `$job.TotalPages } else { 1 }
+                    `$size = if (`$job.Size -and `$job.Size -gt 0) { "`$([math]::Round(`$job.Size / 1KB, 1)) KB" } else { "Unknown" }
+                    Write-Log "📄 WMI: `$fileName (`$pages pages) on `$printerName"
+                    Send-PrintJob -FileName `$fileName -SystemName `$env:COMPUTERNAME -PrinterName `$printerName -Pages `$pages -FileSize `$size -UserName `$userName
+                }
+            }
+        } catch { Write-Log "⚠️ WMI access failed: `$(`$_.Exception.Message)" }
+        
+        Write-Log "⏱️ Waiting 10 seconds before next check..."
+        Start-Sleep -Seconds 10
+    } catch {
+        Write-Log "❌ Error in monitoring loop: `$(`$_.Exception.Message)"
+        Start-Sleep -Seconds 30
+    }
+}
+"@
+    
+    $basicListener | Out-File -FilePath $listenerScript -Encoding UTF8
+    Write-Host "✅ Created basic print listener script"
+}
 
 # Create service wrapper script
 Write-Host "🔧 Creating service wrapper..."
