@@ -16,23 +16,65 @@ export const mockDashboardStats: DashboardStats = {
   failureRate: 0
 };
 
-// PRODUCTION: Empty chart data
-export const chartData = [
-  { name: 'Mon', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Tue', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Wed', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Thu', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Fri', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Sat', jobs: 0, pages: 0, cost: 0 },
-  { name: 'Sun', jobs: 0, pages: 0, cost: 0 }
-];
+// Function to generate chart data from real print jobs
+export const generateChartData = (printJobs: PrintJob[]) => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const today = new Date();
+  const chartData = [];
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dayName = days[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Adjust for Monday start
+    
+    // Filter jobs for this specific day
+    const dayJobs = printJobs.filter(job => {
+      const jobDate = new Date(job.timestamp);
+      return jobDate.toDateString() === date.toDateString();
+    });
+    
+    const dayStats = {
+      name: dayName,
+      jobs: dayJobs.length,
+      pages: dayJobs.reduce((sum, job) => sum + job.pages, 0),
+      cost: dayJobs.reduce((sum, job) => sum + job.cost, 0)
+    };
+    
+    chartData.push(dayStats);
+  }
+  
+  return chartData;
+};
 
-export const departmentData = [
-  { name: 'Finance', value: 0, color: '#3B82F6' },
-  { name: 'Marketing', value: 0, color: '#10B981' },
-  { name: 'Operations', value: 0, color: '#F59E0B' },
-  { name: 'IT', value: 0, color: '#EF4444' },
-  { name: 'HR', value: 0, color: '#8B5CF6' }
-];
+// Function to generate department data from real print jobs
+export const generateDepartmentData = (printJobs: PrintJob[]) => {
+  const departmentColors = {
+    'Finance': '#3B82F6',
+    'Marketing': '#10B981', 
+    'Operations': '#F59E0B',
+    'IT': '#EF4444',
+    'HR': '#8B5CF6',
+    'General': '#6B7280',
+    'Administration': '#7C3AED',
+    'Sales': '#EC4899',
+    'Legal': '#F97316'
+  };
+  
+  // Count jobs by department
+  const departmentCounts = {};
+  const totalJobs = printJobs.length;
+  
+  printJobs.forEach(job => {
+    const dept = job.department || 'General';
+    departmentCounts[dept] = (departmentCounts[dept] || 0) + 1;
+  });
+  
+  // Convert to percentage data for pie chart
+  return Object.entries(departmentCounts).map(([name, count]) => ({
+    name,
+    value: totalJobs > 0 ? Math.round((count as number / totalJobs) * 100) : 0,
+    color: departmentColors[name as keyof typeof departmentColors] || '#6B7280'
+  }));
+};
 
 // PRODUCTION: No helper functions that return dummy data
