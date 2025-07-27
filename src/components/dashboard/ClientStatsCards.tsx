@@ -25,7 +25,7 @@ const ClientStatsCards: React.FC<ClientStatsCardsProps> = ({ stats, isOverallVie
       value: stats.jobsToday.toLocaleString(),
       icon: FileText,
       color: 'bg-blue-500',
-      change: stats.jobsToday > 0 ? `${stats.jobsToday} jobs` : 'No activity',
+     change: stats.jobsToday > 0 ? `${stats.jobsToday} job${stats.jobsToday === 1 ? '' : 's'}` : 'No activity',
       changeColor: stats.jobsToday > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {
@@ -41,7 +41,7 @@ const ClientStatsCards: React.FC<ClientStatsCardsProps> = ({ stats, isOverallVie
       value: stats.totalPages.toLocaleString(),
       icon: TrendingUp,
       color: 'bg-purple-500',
-      change: stats.totalPages > 0 ? `${stats.totalPages} pages` : 'No data',
+     change: stats.totalPages > 0 ? `${stats.totalPages} page${stats.totalPages === 1 ? '' : 's'}` : 'No data',
       changeColor: stats.totalPages > 0 ? 'text-green-600' : 'text-gray-500'
     },
     {

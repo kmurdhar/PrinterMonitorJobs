@@ -280,10 +280,8 @@ const PrintJobsTable: React.FC<PrintJobsTableProps> = ({ jobs, onJobsChange, sel
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {job.status === 'success' ? job.pages : 0} pages
-                        </p>
-                        <p className="text-xs text-gray-500">${job.cost.toFixed(2)}</p>
+                       <p className="text-sm font-medium text-gray-900">{job.pages} pages</p>
+                       <p className="text-xs text-gray-500">${job.cost.toFixed(2)}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
