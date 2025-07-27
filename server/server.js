@@ -272,24 +272,34 @@ app.post('/api/print-jobs', (req, res) => {
     console.log(`🔍 Processing job for client: ${actualClientId} (original: ${clientId})`);
 
     // Auto-discover printer
-   const printer = autoDiscoverPrinter(printerName || 'Unknown Printer', actualClientId);
+   const printer = autoDiscoverPrinter(printerName && printerName.trim() ? printerName.trim() : 'Unknown Printer', actualClientId);
 
     // Detect department from system name
     const department = detectDepartment(systemName);
 
     // Calculate cost (basic calculation - $0.05 per page for B&W, $0.15 for color)
     const costPerPage = colorMode === 'color' ? 0.15 : 0.05;
-   const actualPages = parseInt(pages) || 1;
+   // Better page parsing - handle string numbers and ensure minimum of 1
+   let actualPages = 1;
+   if (typeof pages === 'number') {
+     actualPages = Math.max(1, Math.floor(pages));
+   } else if (typeof pages === 'string') {
+     const parsed = parseInt(pages.trim());
+     actualPages = isNaN(parsed) ? 1 : Math.max(1, parsed);
+   }
+   
+   console.log(`📄 Page count processing: received="${pages}" (${typeof pages}), parsed=${actualPages}`);
+   
    const cost = actualPages * costPerPage;
 
     // Create print job
     const printJob = {
       id: `job-${uuidv4()}`,
-     fileName: fileName && fileName.trim() ? fileName.trim() : 'Unknown Document',
+     fileName: fileName && fileName.trim() ? fileName.trim() : `Document_${Date.now()}`,
       user: systemName || 'Unknown System', // Use system name as user identifier
       systemName: systemName || 'Unknown System',
       department: department || 'General',
-     printer: printerName && printerName.trim() ? printerName.trim() : 'Unknown Printer',
+     printer: printerName && printerName.trim() ? printerName.trim() : 'Default Printer',
      pages: actualPages,
       status: 'success', // Assume success unless specified otherwise
       timestamp: new Date(),
@@ -304,8 +314,9 @@ app.post('/api/print-jobs', (req, res) => {
     printJobs.push(printJob);
 
    console.log(`✅ Print job stored in memory for client ${actualClientId}. Total jobs: ${printJobs.length}`);
-   console.log(`📋 Job details: ${printJob.fileName} from ${printJob.systemName} (${printJob.pages} pages, $${printJob.cost.toFixed(2)})`);
-   console.log(`🖨️ Printer: ${printJob.printer}, Department: ${printJob.department}`);
+   console.log(`📋 Job details: "${printJob.fileName}" from ${printJob.systemName} (${printJob.pages} pages, $${printJob.cost.toFixed(2)})`);
+   console.log(`🖨️ Printer: "${printJob.printer}", Department: ${printJob.department}`);
+   console.log(`💰 Cost calculation: ${actualPages} pages × $${costPerPage} = $${cost.toFixed(2)}`);
 
     // Broadcast real-time update
     broadcast({
@@ -316,7 +327,7 @@ app.post('/api/print-jobs', (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    console.log(`✅ Print job captured: ${fileName} from ${systemName} (Client: ${actualClientId})`);
+   console.log(`✅ Print job captured: "${fileName}" from ${systemName} - ${actualPages} pages (Client: ${actualClientId})`);
 
     res.json({
       success: true,
