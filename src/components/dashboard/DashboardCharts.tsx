@@ -1,8 +1,17 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { chartData, departmentData } from '../../data/mockData';
+import { generateChartData, generateDepartmentData } from '../../data/mockData';
+import { PrintJob } from '../../types';
 
-const DashboardCharts: React.FC = () => {
+interface DashboardChartsProps {
+  printJobs: PrintJob[];
+}
+
+const DashboardCharts: React.FC<DashboardChartsProps> = ({ printJobs }) => {
+  // Generate real chart data from actual print jobs
+  const chartData = generateChartData(printJobs);
+  const departmentData = generateDepartmentData(printJobs);
+  
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       {/* Print Jobs Trend */}
@@ -13,7 +22,14 @@ const DashboardCharts: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value, name) => [
+              name === 'jobs' ? `${value} jobs` : 
+              name === 'pages' ? `${value} pages` :
+              name === 'cost' ? `$${value.toFixed(2)}` : value,
+              name === 'jobs' ? 'Print Jobs' :
+              name === 'pages' ? 'Pages' :
+              name === 'cost' ? 'Cost' : name
+            ]} />
             <Line 
               type="monotone" 
               dataKey="jobs" 
@@ -28,23 +44,32 @@ const DashboardCharts: React.FC = () => {
       {/* Department Usage */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage by Department</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={departmentData}
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              dataKey="value"
-              label={({ name, value }) => `${name}: ${value}%`}
-            >
-              {departmentData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
+        {departmentData.length > 0 && departmentData.some(d => d.value > 0) ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={departmentData.filter(d => d.value > 0)}
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                dataKey="value"
+                label={({ name, value }) => `${name}: ${value}%`}
+              >
+                {departmentData.filter(d => d.value > 0).map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [`${value}%`, 'Usage']} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[300px] text-gray-500">
+            <div className="text-center">
+              <p className="text-lg font-medium">No department data yet</p>
+              <p className="text-sm">Print jobs will populate this chart</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Page Count Trend */}
@@ -55,7 +80,7 @@ const DashboardCharts: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value) => [`${value} pages`, 'Pages Printed']} />
             <Bar dataKey="pages" fill="#10B981" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -69,7 +94,7 @@ const DashboardCharts: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
-            <Tooltip formatter={(value) => [`$${value}`, 'Cost']} />
+            <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Cost']} />
             <Bar dataKey="cost" fill="#F59E0B" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

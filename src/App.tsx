@@ -369,7 +369,7 @@ function App() {
               clientName={currentClientName}
             />
             
-            <DashboardCharts />
+            <DashboardCharts printJobs={clientPrintJobs} />
             
             {clientPrintJobs.length === 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
@@ -502,6 +502,7 @@ function App() {
               </p>
             </div>
             <DashboardCharts />
+            <DashboardCharts printJobs={clientPrintJobs} />
           </div>
         );
       case 'monitoring':
