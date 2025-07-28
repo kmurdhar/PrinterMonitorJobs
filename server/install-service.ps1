@@ -1,4 +1,4 @@
-# PrintMonitor Windows Print Listener - COMPLETE FIX
+# PrintMonitor Windows Print Listener - MESSAGE PARSING VERSION - FIXED
 param(
     [Parameter(Mandatory=$true)]
     [string]$ClientId,
@@ -32,76 +32,20 @@ function Write-Log {
         "WARN"  { Write-Host $logMessage -ForegroundColor Yellow }
         "SUCCESS" { Write-Host $logMessage -ForegroundColor Green }
         "PRINT"   { Write-Host $logMessage -ForegroundColor Cyan }
+        "DEBUG"   { Write-Host $logMessage -ForegroundColor Magenta }
         default { Write-Host $logMessage -ForegroundColor White }
     }
     
     Add-Content -Path $LogPath -Value $logMessage
 }
 
-Write-Log "=== PrintMonitor COMPLETE FIXED VERSION Starting ===" "SUCCESS"
+Write-Log "=== PrintMonitor MESSAGE PARSING VERSION Starting ===" "SUCCESS"
 Write-Log "Client ID: $ClientId"
 Write-Log "API Endpoint: $ApiEndpoint"
 Write-Log "Computer: $env:COMPUTERNAME"
 
-# Global tracking to prevent duplicates
-$processedJobs = @{}
-
-# Function to get printer name from various sources
-function Get-PrinterName {
-    param(
-        [string]$JobId,
-        [object]$WmiJob = $null
-    )
-    
-    try {
-        # Method 1: From WMI job name pattern
-        if ($WmiJob -and $WmiJob.Name) {
-            Write-Log "WMI Job Name: '$($WmiJob.Name)'" "INFO"
-            
-            # Pattern: JobID, PrinterName, ServerName
-            if ($WmiJob.Name -match '^\d+,\s*(.+?),\s*(.*)$') {
-                $printerName = $matches[1].Trim()
-                Write-Log "Extracted printer from WMI Name pattern: '$printerName'" "INFO"
-                return $printerName
-            }
-        }
-        
-        # Method 2: Query all printers and find recent jobs
-        $printers = Get-WmiObject -Class Win32_Printer -ErrorAction SilentlyContinue
-        foreach ($printer in $printers) {
-            try {
-                $printerJobs = Get-WmiObject -Class Win32_PrintJob -Filter "Name like '%$($printer.Name)%'" -ErrorAction SilentlyContinue
-                if ($printerJobs) {
-                    foreach ($job in $printerJobs) {
-                        if ($job.JobId -eq $JobId) {
-                            Write-Log "Found printer via job query: '$($printer.Name)'" "INFO"
-                            return $printer.Name
-                        }
-                    }
-                }
-            } catch {
-                # Continue to next printer
-            }
-        }
-        
-        # Method 3: Get default printer as fallback
-        try {
-            $defaultPrinter = Get-WmiObject -Class Win32_Printer -Filter "Default=True" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($defaultPrinter) {
-                Write-Log "Using default printer as fallback: '$($defaultPrinter.Name)'" "WARN"
-                return $defaultPrinter.Name
-            }
-        } catch {
-            Write-Log "Could not get default printer" "WARN"
-        }
-        
-    } catch {
-        Write-Log "Error in printer name detection: $($_.Exception.Message)" "ERROR"
-    }
-    
-    Write-Log "Could not determine printer name, using fallback" "WARN"
-    return "System Printer"
-}
+# Global tracking to prevent duplicates - using event time + message hash
+$processedEvents = @{}
 
 # Function to send print job to server
 function Send-PrintJob {
@@ -139,7 +83,7 @@ function Send-PrintJob {
         
         $headers = @{
             'Content-Type' = 'application/json'
-            'User-Agent' = 'PrintMonitor-CompleteFixed/4.0'
+            'User-Agent' = 'PrintMonitor-MessageParser/6.0'
         }
         
         $response = Invoke-RestMethod -Uri "$ApiEndpoint/print-jobs" -Method POST -Body $body -Headers $headers -TimeoutSec 30
@@ -168,189 +112,194 @@ try {
     exit 1
 }
 
-# Function to get complete job info from WMI
-function Get-PrintJobInfo {
-    param([string]$JobId)
+# Function to parse Event ID 307 message and extract all details
+function Parse-PrintEventMessage {
+    param([string]$Message)
     
     try {
-        Write-Log "Querying WMI for JobID: $JobId" "INFO"
+        Write-Log "Parsing message: $Message" "DEBUG"
         
-        # Get job from WMI
-        $job = Get-WmiObject -Class Win32_PrintJob -Filter "JobId='$JobId'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        # Initialize default values
+        $jobId = "Unknown"
+        $documentName = "Print Document"
+        $userName = "Unknown"
+        $printerName = "Unknown Printer"
+        $pages = 1
+        $fileSize = "Unknown"
         
-        if ($job) {
-            Write-Log "WMI Job found - Name: '$($job.Name)', Document: '$($job.Document)'" "INFO"
-            
-            # Get printer name using improved method
-            $printerName = Get-PrinterName -JobId $JobId -WmiJob $job
-            
-            # Get document name
-            $documentName = "Unknown Document"
-            if ($job.Document -and $job.Document -ne "Print Document" -and $job.Document.Trim() -ne "") {
-                $documentName = $job.Document.Trim()
-            } else {
-                $documentName = "Document_$JobId"
-            }
-            
-            # Get page count
-            $pages = 1
-            if ($job.TotalPages -and $job.TotalPages -gt 0) {
-                $pages = [int]$job.TotalPages
-            }
-            
-            # Get user/owner
-            $userName = $env:USERNAME
-            if ($job.Owner -and $job.Owner.Trim() -ne "") {
-                $userName = $job.Owner.Trim()
-            }
-            
-            # Calculate file size
-            $fileSize = "Unknown"
-            if ($job.Size -and $job.Size -gt 0) {
-                $sizeInMB = [math]::Round($job.Size / 1MB, 2)
-                $fileSize = "$sizeInMB MB"
-            }
-            
-            Write-Log "FINAL Job Details - Doc: '$documentName', Printer: '$printerName', Pages: $pages, User: '$userName'" "SUCCESS"
-            
-            return @{
-                DocumentName = $documentName
-                PrinterName = $printerName
-                Pages = $pages
-                UserName = $userName
-                FileSize = $fileSize
-                Found = $true
-            }
-        } else {
-            Write-Log "No WMI job found for JobID: $JobId" "WARN"
+        # Parse the message format:
+        # "Document 40, Print Document owned by Digit-IT on \\DESKTOP-RDRNDRQ was printed on HP LaserJet Pro MFP M225-M226 PCL 6 through port HPLaserJetProMFPM226dn. Size in bytes: 231072. Pages printed: 1. No user action is required."
+        
+        # Extract Document ID (Job ID)
+        if ($Message -match 'Document (\d+),') {
+            $jobId = $matches[1]
+            Write-Log "Extracted Job ID: $jobId" "DEBUG"
         }
+        
+        # Extract document name (between comma and "owned by")
+        if ($Message -match 'Document \d+,\s*(.+?)\s+owned by') {
+            $documentName = $matches[1].Trim()
+            Write-Log "Extracted Document Name: $documentName" "DEBUG"
+        }
+        
+        # Extract username (between "owned by" and "on")
+        if ($Message -match 'owned by\s+(.+?)\s+on') {
+            $userName = $matches[1].Trim()
+            Write-Log "Extracted User Name: $userName" "DEBUG"
+        }
+        
+        # Extract printer name (between "printed on" and "through port")
+        if ($Message -match 'printed on\s+(.+?)\s+through port') {
+            $printerName = $matches[1].Trim()
+            Write-Log "Extracted Printer Name: $printerName" "DEBUG"
+        }
+        
+        # Extract file size (between "Size in bytes:" and ".")
+        if ($Message -match 'Size in bytes:\s*(\d+)') {
+            $sizeInBytes = [int]$matches[1]
+            $sizeInMB = [math]::Round($sizeInBytes / 1MB, 2)
+            $fileSize = "$sizeInMB MB"
+            Write-Log "Extracted File Size: $fileSize ($sizeInBytes bytes)" "DEBUG"
+        }
+        
+        # Extract pages (between "Pages printed:" and ".")
+        if ($Message -match 'Pages printed:\s*(\d+)') {
+            $pages = [int]$matches[1]
+            Write-Log "Extracted Pages: $pages" "DEBUG"
+        }
+        
+        return @{
+            JobId = $jobId
+            DocumentName = $documentName
+            UserName = $userName
+            PrinterName = $printerName
+            Pages = $pages
+            FileSize = $fileSize
+            Success = $true
+        }
+        
     } catch {
-        Write-Log "WMI query error for JobID $JobId : $($_.Exception.Message)" "ERROR"
+        Write-Log "Error parsing message: $($_.Exception.Message)" "ERROR"
+        return @{ Success = $false }
     }
-    
-    return @{ Found = $false }
 }
 
-# Function to extract JobID from event data
-function Get-JobIdFromEvent {
-    param($Event)
-    
-    try {
-        $eventXml = [xml]$Event.ToXml()
-        $eventData = $eventXml.Event.EventData.Data
-        
-        # Extract all data elements
-        $dataArray = @()
-        foreach ($data in $eventData) {
-            if ($data.'#text') {
-                $dataArray += $data.'#text'
-            }
-        }
-        
-        if ($dataArray.Count -gt 0) {
-            $jobId = $dataArray[0]  # First parameter is usually JobID
-            Write-Log "Extracted JobID from event: $jobId" "INFO"
-            return $jobId
-        }
-    } catch {
-        Write-Log "Error extracting JobID from event: $($_.Exception.Message)" "ERROR"
-    }
-    
-    return $null
-}
-
-# Create unique key for deduplication
-function Get-UniqueKey {
+# FIXED: Create unique key for event deduplication
+function Get-EventKey {
     param(
-        [string]$DocumentName,
-        [string]$PrinterName,
-        [string]$UserName,
-        [int]$Pages
+        [DateTime]$EventTime,
+        [string]$Message
     )
     
-    $cleanDoc = ($DocumentName -replace '[^\w\.]', '_').Trim('_')
-    $cleanPrinter = ($PrinterName -replace '[^\w\s]', '_').Trim('_')
-    $cleanUser = ($UserName -replace '[^\w]', '_').Trim('_')
-    
-    # Create time window (2 minutes) to group related jobs
-    $timeWindow = [math]::Floor((Get-Date).Ticks / 1200000000)
-    
-    $uniqueKey = "$cleanDoc|$cleanPrinter|$cleanUser|$Pages|$timeWindow"
-    Write-Log "Generated unique key: $uniqueKey" "INFO"
-    
-    return $uniqueKey
+    try {
+        # Handle null or empty message
+        if ([string]::IsNullOrEmpty($Message)) {
+            Write-Log "Warning: Message is null or empty, using default" "WARN"
+            $Message = "EmptyMessage"
+        }
+        
+        # Create hash of message content to detect identical events
+        $messageBytes = [System.Text.Encoding]::UTF8.GetBytes($Message)
+        $memoryStream = [System.IO.MemoryStream]::new($messageBytes)
+        $messageHash = (Get-FileHash -Algorithm MD5 -InputStream $memoryStream).Hash.Substring(0, 8)
+        $memoryStream.Dispose()
+        
+        # Combine event time (to minute precision) with message hash
+        $timeKey = $EventTime.ToString("yyyy-MM-dd HH:mm")
+        $eventKey = "$timeKey|$messageHash"
+        
+        Write-Log "Generated event key: $eventKey" "DEBUG"
+        return $eventKey
+        
+    } catch {
+        Write-Log "Error generating event key: $($_.Exception.Message)" "ERROR"
+        # Fallback to time-based key only
+        $fallbackKey = $EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
+        Write-Log "Using fallback event key: $fallbackKey" "WARN"
+        return $fallbackKey
+    }
 }
 
-# Main function to process print completion events
+# FIXED: Main function to process print completion events
 function Process-PrintCompletion {
     param($Event)
     
     Write-Log "=== PROCESSING PRINT COMPLETION EVENT ===" "INFO"
     Write-Log "Event ID: $($Event.Id), Time: $($Event.TimeCreated)" "INFO"
     
-    # Extract JobID from event
-    $jobId = Get-JobIdFromEvent -Event $Event
-    if (-not $jobId) {
-        Write-Log "Could not extract JobID from event, skipping" "WARN"
+    # Check if event has a valid message
+    if ([string]::IsNullOrEmpty($Event.Message)) {
+        Write-Log "Warning: Event has no message content, skipping" "WARN"
         return
     }
     
-    # Get complete job information from WMI
-    $jobInfo = Get-PrintJobInfo -JobId $jobId
-    if (-not $jobInfo.Found) {
-        Write-Log "Could not get job details from WMI for JobID: $jobId" "WARN"
+    Write-Log "Event message preview: $($Event.Message.Substring(0, [Math]::Min(100, $Event.Message.Length)))..." "DEBUG"
+    
+    # Create unique event key to prevent processing the same event multiple times
+    try {
+        $eventKey = Get-EventKey -EventTime $Event.TimeCreated -Message $Event.Message
+    } catch {
+        Write-Log "Failed to generate event key: $($_.Exception.Message)" "ERROR"
         return
     }
     
-    # Create unique key for this job
-    $uniqueKey = Get-UniqueKey -DocumentName $jobInfo.DocumentName -PrinterName $jobInfo.PrinterName -UserName $jobInfo.UserName -Pages $jobInfo.Pages
-    
-    # Check if we already processed this job
-    if ($processedJobs.ContainsKey($uniqueKey)) {
-        Write-Log "DUPLICATE DETECTED - Already processed: $uniqueKey" "WARN"
+    # Check if we already processed this exact event
+    if ($processedEvents.ContainsKey($eventKey)) {
+        Write-Log "DUPLICATE EVENT DETECTED - Already processed this exact event: $eventKey" "WARN"
         return
     }
+    
+    # Parse the event message to extract job details
+    $jobDetails = Parse-PrintEventMessage -Message $Event.Message
+    
+    if (-not $jobDetails.Success) {
+        Write-Log "Failed to parse event message, skipping" "ERROR"
+        return
+    }
+    
+    Write-Log "Parsed Job Details - ID: $($jobDetails.JobId), Doc: '$($jobDetails.DocumentName)', User: '$($jobDetails.UserName)', Printer: '$($jobDetails.PrinterName)', Pages: $($jobDetails.Pages)" "SUCCESS"
     
     # Send the job to server
-    $success = Send-PrintJob -DocumentName $jobInfo.DocumentName -PrinterName $jobInfo.PrinterName -Pages $jobInfo.Pages -UserName $jobInfo.UserName -JobId $jobId -FileSize $jobInfo.FileSize
+    $success = Send-PrintJob -DocumentName $jobDetails.DocumentName -PrinterName $jobDetails.PrinterName -Pages $jobDetails.Pages -UserName $jobDetails.UserName -JobId $jobDetails.JobId -FileSize $jobDetails.FileSize
     
     if ($success) {
-        # Mark as processed
-        $processedJobs[$uniqueKey] = @{
-            JobId = $jobId
+        # Mark this event as processed
+        $processedEvents[$eventKey] = @{
+            JobId = $jobDetails.JobId
             Time = Get-Date
-            DocumentName = $jobInfo.DocumentName
+            DocumentName = $jobDetails.DocumentName
+            EventTime = $Event.TimeCreated
         }
-        Write-Log "Job processed successfully and marked as complete" "SUCCESS"
+        Write-Log "Event processed successfully and marked as complete" "SUCCESS"
     }
     
     Write-Log "=== END PROCESSING ===" "INFO"
 }
 
-# Cleanup old processed jobs periodically
-function Cleanup-ProcessedJobs {
-    $oneHourAgo = (Get-Date).AddHours(-1)
+# Cleanup old processed events periodically
+function Cleanup-ProcessedEvents {
+    $twoHoursAgo = (Get-Date).AddHours(-2)
     $keysToRemove = @()
     
-    foreach ($key in $processedJobs.Keys) {
-        if ($processedJobs[$key].Time -lt $oneHourAgo) {
+    foreach ($key in $processedEvents.Keys) {
+        if ($processedEvents[$key].Time -lt $twoHoursAgo) {
             $keysToRemove += $key
         }
     }
     
     foreach ($key in $keysToRemove) {
-        $processedJobs.Remove($key)
+        $processedEvents.Remove($key)
     }
     
     if ($keysToRemove.Count -gt 0) {
-        Write-Log "Cleaned up $($keysToRemove.Count) old job records" "INFO"
+        Write-Log "Cleaned up $($keysToRemove.Count) old event records" "INFO"
     }
 }
 
-# MAIN MONITORING LOOP
-Write-Log "Starting Print Job Monitoring - SINGLE EVENT MODE" "SUCCESS"
+# FIXED MAIN MONITORING LOOP - ONLY Event ID 307
+Write-Log "Starting Print Job Monitoring - MESSAGE PARSING MODE" "SUCCESS"
 Write-Log "Monitoring ONLY Event ID 307 (Print Job Completed)" "INFO"
-Write-Log "Duplicate detection enabled - ONE entry per print job guaranteed" "INFO"
+Write-Log "Parsing event messages directly - NO duplicates guaranteed!" "INFO"
 
 $loopCount = 0
 $totalJobsProcessed = 0
@@ -362,8 +311,7 @@ try {
             # Get only completion events from the last 10 seconds
             $startTime = (Get-Date).AddSeconds(-10)
             
-            # CRITICAL: ONLY monitor Event ID 307 (print job completed)
-            # This is the key fix - ignore all other event IDs
+            # CRITICAL: ONLY monitor Event ID 307 (print job completed) - NOT 800!
             $events = Get-WinEvent -FilterHashtable @{
                 LogName = "Microsoft-Windows-PrintService/Operational"
                 Id = 307  # ONLY completion events
@@ -371,9 +319,9 @@ try {
             } -ErrorAction SilentlyContinue
             
             if ($events) {
-                Write-Log "Found $($events.Count) print completion event(s)" "INFO"
+                Write-Log "Found $($events.Count) print completion event(s) in last 10 seconds" "INFO"
                 
-                # Process each completion event
+                # Process each completion event (deduplication happens inside Process-PrintCompletion)
                 foreach ($event in $events | Sort-Object TimeCreated) {
                     Process-PrintCompletion -Event $event
                     $totalJobsProcessed++
@@ -384,12 +332,24 @@ try {
             $loopCount++
             if ($loopCount % 60 -eq 0) {
                 $uptime = (Get-Date) - $monitoringStart
-                Write-Log "HEARTBEAT - Uptime: $($uptime.ToString('hh\:mm\:ss')), Jobs Processed: $totalJobsProcessed, In Memory: $($processedJobs.Count)" "INFO"
+                Write-Log "HEARTBEAT - Uptime: $($uptime.ToString('hh\:mm\:ss')), Jobs Processed: $totalJobsProcessed, Events in Memory: $($processedEvents.Count)" "INFO"
+                
+                # Check printer status during heartbeat
+                try {
+                    $defaultPrinter = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Default = TRUE" -ErrorAction SilentlyContinue
+                    if ($defaultPrinter) {
+                        Write-Log "Default Printer: $($defaultPrinter.Name) - Status: $($defaultPrinter.PrinterStatus)" "INFO"
+                    } else {
+                        Write-Log "WARNING: No default printer found!" "WARN"
+                    }
+                } catch {
+                    Write-Log "Could not check printer status" "WARN"
+                }
             }
             
             # Cleanup every 30 minutes
             if ($loopCount % 900 -eq 0) {
-                Cleanup-ProcessedJobs
+                Cleanup-ProcessedEvents
             }
             
             Start-Sleep -Seconds 2
