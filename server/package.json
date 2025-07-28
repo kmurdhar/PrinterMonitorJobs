@@ -1,24 +1,65 @@
 {
-  "name": "printer-monitor-server",
+  "name": "printer-monitoring-system",
+  "private": true,
   "version": "1.0.0",
-  "description": "Backend server for printer monitoring system",
+  "description": "Enterprise printer monitoring and management system",
   "type": "module",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules/.vite",
+    "fresh-install": "rm -rf node_modules package-lock.json && npm install",
+    "server": "node server/server.js",
+    "server:dev": "node server/server.js",
+    "build:full": "npm run build",
+    "full-stack": "concurrently \"npm run server:dev\" \"npm run dev\""
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "uuid": "^9.0.1",
-    "ws": "^8.14.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0"
-  }
+    "@eslint/js": "^9.9.1",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "globals": "^15.9.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.3.0",
+    "vite": "^5.4.8"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "printer-monitoring",
+    "print-management",
+    "enterprise",
+    "react",
+    "typescript",
+    "tailwindcss"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/printer-monitoring-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/printer-monitoring-system/issues"
+  },
+  "homepage": "https://github.com/yourusername/printer-monitoring-system#readme"
 }
